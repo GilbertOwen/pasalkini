@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Data is rebuilt by the pipeline from sources/manifest.yaml
+data/*
+!data/README.md
+
+# Eval runs: keep only the summaries
+evals/runs/*/*
+!evals/runs/*/summary.md
+
+# Editors and tools
+.vscode/
+.idea/
+.claude/
+.ipynb_checkpoints/

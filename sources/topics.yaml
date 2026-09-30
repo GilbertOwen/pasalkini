@@ -1,0 +1,49 @@
+# Topics in scope for v1, with the words people actually use.
+# Synonyms are lower-case and must be unique across topics.
+# They drive query rewriting (Phase 4) and topic tagging of articles (Phase 3).
+
+topics:
+  - id: pkwt
+    name: Perjanjian Kerja Waktu Tertentu (PKWT)
+    description: Fixed-term contracts, their duration, extension and renewal, and compensation at the end.
+    synonyms: [kontrak, karyawan kontrak, pegawai kontrak, perpanjangan kontrak, kompensasi pkwt]
+
+  - id: pkwtt-percobaan
+    name: PKWTT dan masa percobaan
+    description: Permanent employment and the probation period.
+    synonyms: [karyawan tetap, pegawai tetap, masa percobaan, probation]
+
+  - id: alih-daya
+    name: Alih daya
+    description: Outsourcing of work and of workers.
+    synonyms: [outsourcing, outsource, tenaga alih daya, vendor tenaga kerja]
+
+  - id: waktu-kerja-lembur
+    name: Waktu kerja dan lembur
+    description: Working hours, overtime limits and overtime pay.
+    synonyms: [jam kerja, lembur, upah lembur, kerja lembur, shift]
+
+  - id: istirahat-cuti
+    name: Waktu istirahat dan cuti
+    description: Daily and weekly rest, annual leave, long leave, and other leave.
+    synonyms: [cuti, cuti tahunan, istirahat panjang, libur mingguan, cuti haid, cuti melahirkan]
+
+  - id: upah
+    name: Upah dan upah minimum
+    description: Wage components, minimum wage and how it is set, wage payment.
+    synonyms: [gaji, upah minimum, ump, umk, kenaikan upah, tunjangan tetap]
+
+  - id: phk
+    name: Pemutusan hubungan kerja (PHK)
+    description: Grounds and procedure for dismissal, and what the worker can do.
+    synonyms: [dipecat, di-phk, dirumahkan, diberhentikan, pemecatan, resign, mengundurkan diri]
+
+  - id: pesangon
+    name: Pesangon, UPMK dan UPH
+    description: Severance pay, long-service pay and compensation for rights at dismissal.
+    synonyms: [uang pesangon, uang penghargaan masa kerja, upmk, uang penggantian hak, uph]
+
+  - id: pekerja-platform
+    name: Pekerja platform digital
+    description: Platform and app-based workers. In scope only if the new labor law regulates them.
+    synonyms: [ojol, ojek online, driver online, kurir online, mitra aplikasi]

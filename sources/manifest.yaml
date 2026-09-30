@@ -1,0 +1,175 @@
+# Legal instruments in scope for PasalKini v1.
+#
+# Rules:
+# - Only official government sources (see the legal review).
+# - Dates come from each document's own text (closing clause / signature block),
+#   never from news or memory. Set dates_verified: true once you have checked them.
+# - approved_on: joint DPR-government approval (UU only)
+#   promulgated_on: diundangkan (for MK decisions: the date it was pronounced)
+#   in_force_on: mulai berlaku
+# - parse_scope says which part of the document the Phase 1 parser should read.
+
+instruments:
+  - id: uu-13-2003
+    kind: UU
+    number: "13"
+    year: 2003
+    title: Ketenagakerjaan
+    status: active
+    parse_scope: Whole law, including PENJELASAN
+    urls:
+      bpk: https://peraturan.bpk.go.id/Details/43013/uu-no-13-tahun-2003
+      peraturan_go_id: https://peraturan.go.id/id/uu-no-13-tahun-2003
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: >-
+      Base law. BPK lists earlier MK rulings on Pasal 158-160, 170, 171, 186, 96 and 153;
+      add those as events in Phase 3.
+
+  - id: uu-11-2020
+    kind: UU
+    number: "11"
+    year: 2020
+    title: Cipta Kerja
+    status: active
+    parse_scope: Bab IV Ketenagakerjaan only; Pasal 81 amends UU 13/2003
+    urls:
+      bpk: https://peraturan.bpk.go.id/Details/149750/uu-no-11-tahun-2020
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: Revoked and replaced by Perppu 2/2022. BPK marks it as no longer in force.
+
+  - id: perppu-2-2022
+    kind: PERPPU
+    number: "2"
+    year: 2022
+    title: Cipta Kerja
+    status: active
+    parse_scope: Bab IV Ketenagakerjaan only; Pasal 81 amends UU 13/2003
+    urls:
+      bpk: https://peraturan.bpk.go.id/Details/234926/perpu-no-2-tahun-2022
+      peraturan_go_id: https://peraturan.go.id/id/perppu-no-2-tahun-2022
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: Enacted as law by UU 6/2023 with the same wording.
+
+  - id: uu-6-2023
+    kind: UU
+    number: "6"
+    year: 2023
+    title: Penetapan Perppu Nomor 2 Tahun 2022 tentang Cipta Kerja menjadi Undang-Undang
+    status: active
+    parse_scope: Enacting article only; the text itself is parsed from perppu-2-2022
+    urls:
+      bpk: https://peraturan.bpk.go.id/Details/246523/uu-no-6-tahun-2023
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: Changes the legal basis of the Perppu text, not its wording.
+
+  - id: mk-168-puu-xxi-2023
+    kind: PUTUSAN_MK
+    number: 168/PUU-XXI/2023
+    year: 2023
+    title: Pengujian materiil UU 6/2023 (klaster ketenagakerjaan)
+    status: active
+    parse_scope: Amar putusan only (21 points)
+    urls:
+      mkri_pdf: https://www.mkri.id/public/content/persidangan/putusan/putusan_mkri_11215_1730375514.pdf
+      mkri_news: https://www.mkri.id/berita/kabulkan-sebagian,-mk-minta-uu-ketenagakerjaan-dipisahkan-dari-uu-cipta-kerja-21782
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: >-
+      The case number year (2023) is the filing year; the ruling was pronounced in 2024.
+      MK rulings take effect when pronounced. The PDF is 687 pages.
+
+  - id: pp-35-2021
+    kind: PP
+    number: "35"
+    year: 2021
+    title: >-
+      Perjanjian Kerja Waktu Tertentu, Alih Daya, Waktu Kerja dan Waktu Istirahat,
+      dan Pemutusan Hubungan Kerja
+    status: active
+    parse_scope: Whole regulation, including PENJELASAN
+    urls:
+      bpk: https://peraturan.bpk.go.id/Details/161904/pp-no-35-tahun-2021
+      peraturan_go_id: https://peraturan.go.id/id/pp-no-35-tahun-2021
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: Implementing regulation of the Cipta Kerja labor cluster.
+
+  - id: pp-36-2021
+    kind: PP
+    number: "36"
+    year: 2021
+    title: Pengupahan
+    status: active
+    parse_scope: Whole regulation, including PENJELASAN
+    urls:
+      bpk: https://peraturan.bpk.go.id/Details/161909/pp-no-36-tahun-2021
+      peraturan_go_id: https://peraturan.go.id/id/pp-no-36-tahun-2021
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: Amended by PP 51/2023 and PP 49/2025.
+
+  - id: pp-51-2023
+    kind: PP
+    number: "51"
+    year: 2023
+    title: Perubahan atas PP Nomor 36 Tahun 2021 tentang Pengupahan
+    status: active
+    parse_scope: Whole regulation
+    urls:
+      bpk: https://peraturan.bpk.go.id/Details/270269/pp-no-51-tahun-2023
+      peraturan_go_id: https://peraturan.go.id/id/pp-no-51-tahun-2023
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: Changes the minimum wage formula.
+
+  - id: pp-49-2025
+    kind: PP
+    number: "49"
+    year: 2025
+    title: Perubahan Kedua atas PP Nomor 36 Tahun 2021 tentang Pengupahan
+    status: active
+    parse_scope: Whole regulation
+    urls:
+      bpk: https://peraturan.bpk.go.id/Details/339037/pp-no-49-tahun-2025
+      peraturan_go_id: https://www.peraturan.go.id/id/pp-no-49-tahun-2025
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: Found 2026-09-30 via the BPK entry for PP 36/2021; cites MK 168 in its considerations.
+
+  - id: uu-pelindungan-ketenagakerjaan
+    kind: UU
+    number: null
+    year: null
+    title: Pelindungan Ketenagakerjaan (bill; title may change)
+    status: pending
+    parse_scope: To decide once the promulgated text is available
+    urls: {}
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: >-
+      DPR target for plenary passage: 2026-10-08. MK deadline: 2026-10-31. Rename the id to
+      uu-<number>-<year> once promulgated. Never parse drafts.
