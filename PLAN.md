@@ -22,7 +22,7 @@ Ask a labor-law question and a date. Get the answer that was legally correct on 
 
 ### Scope (v1)
 
-- **Instruments (core chain, about 10):** UU 13/2003 · UU 11/2020, Perppu 2/2022 and UU 6/2023 (Bab IV Ketenagakerjaan only) · MK 168/PUU-XXI/2023 · PP 35/2021 · PP 36/2021 and PP 51/2023 (wages) · the new labor law once it is promulgated.
+- **Instruments (core chain, about 10):** UU 13/2003 · UU 11/2020, Perppu 2/2022 and UU 6/2023 (Bab IV Ketenagakerjaan only) · MK 168/PUU-XXI/2023 · PP 35/2021 · PP 36/2021, PP 51/2023 and PP 49/2025 (wages) · the new labor law once it is promulgated.
 - **Topics (about 9):** PKWT · PKWTT and probation · outsourcing (alih daya) · working hours and overtime · rest and leave · wages and minimum wage · dismissal procedure (PHK) · severance (pesangon, UPMK, UPH) · platform workers (if the new law covers them).
 
 ### Not in v1
