@@ -222,6 +222,17 @@ def test_split_parts_with_ocr_closing_and_penjelasan():
     assert penjelasan[0].text == "PENJET,ASAN"
 
 
+def test_amar_stops_before_dissenting_opinion():
+    decision = lines(
+        "Mengadili:\n1. Mengabulkan permohonan;\n2. Menolak selebihnya. ----------\n"
+        "6. PENDAPAT BERBEDA (DISSENTING OPINION)\nBahwa terhadap putusan ini.\n"
+        "Demikian diputus dalam Rapat Permusyawaratan Hakim.\ndiucapkan pada hari Kamis"
+    )
+    amar, closing = parse_amar(decision, "t", [])
+    assert [a.text for a in amar] == ["Mengabulkan permohonan;", "Menolak selebihnya."]
+    assert closing.startswith("Demikian diputus")
+
+
 def test_amar_numbered_and_bulleted():
     numbered = lines(
         "Mengadili:\n1. Mengabulkan permohonan;\n2. Menyatakan pasal\nini;\nDemikian diputus"

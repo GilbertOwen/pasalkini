@@ -74,6 +74,7 @@ UMUM = re.compile(r"^(I\s*\.?\s*)?UMUM$")
 PASAL_DEMI_PASAL = re.compile(r"^(II\s*\.?\s*)?PASAL\s+DEMI\s+PASAL$")
 MENGADILI = re.compile(r"^M\s*E\s*N\s*G\s*A\s*D\s*I\s*L\s*I\s*[:,]?$", re.IGNORECASE)
 DEMIKIAN = re.compile(r"^Demikian\s+diputus", re.IGNORECASE)
+OPINION = re.compile(r"^\d+\.\s*(PENDAPAT|ALASAN)\s+BERBEDA", re.IGNORECASE)
 
 ROMAN_VALUES = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100}
 
@@ -578,8 +579,12 @@ def parse_amar(lines: list[Line], where: str, warnings: list[str]):
         return [], ""
     start = starts[-1]
     end = next((i for i in range(start, len(lines)) if DEMIKIAN.match(lines[i].text)), len(lines))
+    # A dissenting or concurring opinion can sit between the ruling and 'Demikian diputus'.
+    stop = next((i for i in range(start, end) if OPINION.match(lines[i].text)), end)
     points: list[tuple[int, list[str]]] = []
-    for line in lines[start + 1 : end]:
+    for line in lines[start + 1 : stop]:
+        if re.fullmatch(r"-{3,}", line.text):
+            continue
         marker = POINT_MARKER.match(line.text)
         bullet = re.match(r"^[•●▪\-–]\s*(.*)$", line.text)  # older decisions use bullets
         expected = points[-1][0] + 1 if points else 1
@@ -589,6 +594,6 @@ def parse_amar(lines: list[Line], where: str, warnings: list[str]):
             points.append((expected, [bullet.group(1)]))
         elif points:
             points[-1][1].append(line.text)
-    amar = [AmarPoint(number=n, text=join_lines(t)) for n, t in points]
+    amar = [AmarPoint(number=n, text=re.sub(r"\s*-{3,}\s*$", "", join_lines(t))) for n, t in points]
     closing = join_lines([ln.text for ln in lines[end : end + 30]])
     return amar, closing

@@ -1,4 +1,4 @@
-# Python
+﻿# Python
 __pycache__/
 *.py[cod]
 .venv/
@@ -18,6 +18,8 @@ data/*
 # Eval runs: keep only the summaries
 evals/runs/*/*
 !evals/runs/*/summary.md
+!evals/runs/*/config.json
+!evals/runs/*/grading.csv
 
 # Editors and tools
 .vscode/
