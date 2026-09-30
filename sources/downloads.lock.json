@@ -1,0 +1,92 @@
+{
+  "mk-168-puu-xxi-2023": {
+    "url": "https://www.mkri.id/public/content/persidangan/putusan/putusan_mkri_11215_1730375514.pdf",
+    "sha256": "135545754041bac9be95e52e6d6534fe5811d050a4a7389a630af941a136cb63",
+    "bytes": 3635613,
+    "retrieved_at": "2026-09-30T16:05:57+00:00"
+  },
+  "mk-19-puu-ix-2011": {
+    "url": "https://www.mkri.id/public/content/persidangan/putusan/putusan_sidang_19%20PUU%202011-TELAH%20BACA%2020-06-2012.pdf",
+    "sha256": "f8918bd0558ad06b1be76e0ad9135a376dec4ca57239deea5fa88389aef259a8",
+    "bytes": 241705,
+    "retrieved_at": "2026-09-30T16:06:12+00:00"
+  },
+  "mk-91-puu-xviii-2020": {
+    "url": "https://www.mkri.id/public/content/persidangan/putusan/putusan_mkri_8240_1637822490.pdf",
+    "sha256": "a921a215490a76f53f4670987cb4f03dc8e3ff3b129ecd82d46d2648d066a236",
+    "bytes": 2565184,
+    "retrieved_at": "2026-09-30T16:06:15+00:00"
+  },
+  "permenaker-7-2026": {
+    "url": "https://peraturan.bpk.go.id/Download/412369/2026pmnaker007.pdf",
+    "sha256": "08f6cf8a70ceb7b63014e04fe7f6e087edd3049865a6822e9509ab226baa4fbb",
+    "bytes": 266860,
+    "retrieved_at": "2026-09-30T16:06:18+00:00"
+  },
+  "perppu-2-2022": {
+    "url": "https://peraturan.bpk.go.id/Download/287447/Perpu%20Nomor%202%20Tahun%202022.pdf",
+    "sha256": "386f6838053fe33f613dca5653195427da2cf742259d4202293419d8c8b328d7",
+    "bytes": 64489366,
+    "retrieved_at": "2026-09-30T16:05:50+00:00"
+  },
+  "pp-35-2021": {
+    "url": "https://peraturan.go.id/files/pp35-2021bt.pdf",
+    "sha256": "f524a5783535c6c575848b18235080d62d85b215cb15c824d477dec70003fd7d",
+    "bytes": 353331,
+    "retrieved_at": "2026-09-30T16:10:39+00:00"
+  },
+  "pp-35-2021.penjelasan": {
+    "url": "https://peraturan.go.id/files/pp35-2021pjl.pdf",
+    "sha256": "6d1e0238eb8df46b68d1ba18bb8c895946e579d533205db3cdc403e2d016c8cb",
+    "bytes": 160483,
+    "retrieved_at": "2026-09-30T16:10:41+00:00"
+  },
+  "pp-36-2021": {
+    "url": "https://peraturan.go.id/files/pp36-2021bt.pdf",
+    "sha256": "1b28e8963588041acd4de87cb34ffee798dda7dbd142829b113012951e681c40",
+    "bytes": 441724,
+    "retrieved_at": "2026-09-30T16:10:45+00:00"
+  },
+  "pp-36-2021.penjelasan": {
+    "url": "https://peraturan.go.id/files/pp36-2021pjl.pdf",
+    "sha256": "cc07cc0677ec32e3c5cbcd91cce5b40ead80b025907739b75fa878ee10f70edc",
+    "bytes": 200409,
+    "retrieved_at": "2026-09-30T16:10:48+00:00"
+  },
+  "pp-49-2025": {
+    "url": "https://peraturan.bpk.go.id/Download/402111/PP%20Nomor%2049%20Tahun%202025.pdf",
+    "sha256": "9170d0e027d70fa516b522c766681cf1e2d45bda06aa4552e738a5573378c300",
+    "bytes": 1503137,
+    "retrieved_at": "2026-09-30T16:06:09+00:00"
+  },
+  "pp-51-2023": {
+    "url": "https://peraturan.bpk.go.id/Download/328142/PP%20Nomor%2051%20Tahun%202023.pdf",
+    "sha256": "44de8376b488f4cf0f910660c05ac6e6044282b4c7c23b4e0e0b0e0881d349b8",
+    "bytes": 2769139,
+    "retrieved_at": "2026-09-30T16:06:06+00:00"
+  },
+  "uu-11-2020": {
+    "url": "https://peraturan.go.id/files/uu11-2020bt.pdf",
+    "sha256": "532d8d725a4cebe9bf0bb0cd5408c01a899d5a5f5211905c9618a6f07da6132b",
+    "bytes": 2916418,
+    "retrieved_at": "2026-09-30T16:10:35+00:00"
+  },
+  "uu-11-2020.penjelasan": {
+    "url": "https://peraturan.go.id/files/uu11-2020pjl.pdf",
+    "sha256": "9fc84bc09680de39fe76bd05fcf0a30e5f596e3cd33c2508072930d88968e452",
+    "bytes": 1318231,
+    "retrieved_at": "2026-09-30T16:10:36+00:00"
+  },
+  "uu-13-2003": {
+    "url": "https://peraturan.bpk.go.id/Download/31128/UU%20Nomor%2013%20Tahun%202003.pdf",
+    "sha256": "0d3868d19082be34c875a376729998b4d948cac745b1e613d90e6f257d5bf273",
+    "bytes": 297503,
+    "retrieved_at": "2026-09-30T16:05:42+00:00"
+  },
+  "uu-6-2023": {
+    "url": "https://peraturan.bpk.go.id/Download/302681/UU%20Nomor%206%20Tahun%202023.pdf",
+    "sha256": "de73c84f11d4e721a4c0e66cadadac7f698941ec8adff5934e70f32dc885fdae",
+    "bytes": 85354383,
+    "retrieved_at": "2026-09-30T16:05:54+00:00"
+  }
+}

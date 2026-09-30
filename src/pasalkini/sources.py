@@ -22,6 +22,17 @@ class Kind(StrEnum):
     PUTUSAN_MK = "PUTUSAN_MK"
 
 
+class ParseHints(BaseModel):
+    """How the Phase 1 parser should read a document."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    scope_start: str | None = None  # exact line where the part to parse starts, e.g. 'BAB IV'
+    scope_end: str | None = None  # exact line where it ends, e.g. 'BAB V'
+    own_numbering: Literal["arabic", "roman"] = "arabic"  # amending regulations use Pasal I, II
+    penjelasan: bool = True  # parse the explanation (off for documents with attachments)
+
+
 class Instrument(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -33,6 +44,12 @@ class Instrument(BaseModel):
     status: Literal["active", "pending"]
     parse_scope: str
     urls: dict[str, HttpUrl]
+    pdf_url: HttpUrl | None = None  # the body, or the whole document
+    penjelasan_pdf_url: HttpUrl | None = None  # when the explanation is a separate file
+    # typeset: text generated from the source document; ocr: scanned pages with an OCR layer.
+    # OCR text needs number repair in the parser and is lower quality for retrieval.
+    text_layer: Literal["typeset", "ocr"] | None = None
+    parse: ParseHints = ParseHints()
     approved_on: date | None = None
     promulgated_on: date | None = None
     in_force_on: date | None = None
@@ -46,6 +63,10 @@ class Instrument(BaseModel):
                 raise ValueError(f"{self.id}: an active instrument needs a number and a year")
             if not self.urls:
                 raise ValueError(f"{self.id}: an active instrument needs at least one official URL")
+            if self.pdf_url is None:
+                raise ValueError(f"{self.id}: an active instrument needs a pdf_url")
+            if self.text_layer is None:
+                raise ValueError(f"{self.id}: an active instrument needs text_layer")
         if self.dates_verified and (self.promulgated_on is None or self.in_force_on is None):
             raise ValueError(f"{self.id}: dates_verified is true but dates are missing")
         if self.kind is Kind.UU and self.dates_verified and self.approved_on is None:

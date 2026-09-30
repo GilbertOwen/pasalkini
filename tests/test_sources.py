@@ -36,7 +36,9 @@ def test_active_sources_are_official(manifest):
         "jdih.kemnaker.go.id",
     }
     for instrument in manifest.instruments:
-        for url in instrument.urls.values():
+        files = [instrument.pdf_url, instrument.penjelasan_pdf_url]
+        urls = list(instrument.urls.values()) + [u for u in files if u]
+        for url in urls:
             assert url.host in official_hosts, f"{instrument.id}: {url} is not an official source"
 
 

@@ -1,4 +1,4 @@
-# Legal instruments in scope for PasalKini v1.
+﻿# Legal instruments in scope for PasalKini v1.
 #
 # Rules:
 # - Only official government sources (see the legal review).
@@ -20,6 +20,8 @@ instruments:
     urls:
       bpk: https://peraturan.bpk.go.id/Details/43013/uu-no-13-tahun-2003
       peraturan_go_id: https://peraturan.go.id/id/uu-no-13-tahun-2003
+    pdf_url: https://peraturan.bpk.go.id/Download/31128/UU%20Nomor%2013%20Tahun%202003.pdf
+    text_layer: typeset
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -37,6 +39,12 @@ instruments:
     parse_scope: Bab IV Ketenagakerjaan only; Pasal 81 amends UU 13/2003
     urls:
       bpk: https://peraturan.bpk.go.id/Details/149750/uu-no-11-tahun-2020
+    pdf_url: https://peraturan.go.id/files/uu11-2020bt.pdf
+    penjelasan_pdf_url: https://peraturan.go.id/files/uu11-2020pjl.pdf
+    text_layer: typeset
+    parse:
+      scope_start: BAB IV
+      scope_end: BAB V
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -53,6 +61,11 @@ instruments:
     urls:
       bpk: https://peraturan.bpk.go.id/Details/234926/perpu-no-2-tahun-2022
       peraturan_go_id: https://peraturan.go.id/id/perppu-no-2-tahun-2022
+    pdf_url: https://peraturan.bpk.go.id/Download/287447/Perpu%20Nomor%202%20Tahun%202022.pdf
+    text_layer: ocr
+    parse:
+      scope_start: BAB IV
+      scope_end: BAB V
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -68,6 +81,10 @@ instruments:
     parse_scope: Enacting article only; the text itself is parsed from perppu-2-2022
     urls:
       bpk: https://peraturan.bpk.go.id/Details/246523/uu-no-6-tahun-2023
+    pdf_url: https://peraturan.bpk.go.id/Download/302681/UU%20Nomor%206%20Tahun%202023.pdf
+    text_layer: ocr
+    parse:
+      penjelasan: false
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -84,6 +101,8 @@ instruments:
     urls:
       mkri_pdf: https://www.mkri.id/public/content/persidangan/putusan/putusan_mkri_11215_1730375514.pdf
       mkri_news: https://www.mkri.id/berita/kabulkan-sebagian,-mk-minta-uu-ketenagakerjaan-dipisahkan-dari-uu-cipta-kerja-21782
+    pdf_url: https://www.mkri.id/public/content/persidangan/putusan/putusan_mkri_11215_1730375514.pdf
+    text_layer: typeset
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -104,6 +123,9 @@ instruments:
     urls:
       bpk: https://peraturan.bpk.go.id/Details/161904/pp-no-35-tahun-2021
       peraturan_go_id: https://peraturan.go.id/id/pp-no-35-tahun-2021
+    pdf_url: https://peraturan.go.id/files/pp35-2021bt.pdf
+    penjelasan_pdf_url: https://peraturan.go.id/files/pp35-2021pjl.pdf
+    text_layer: typeset
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -120,6 +142,9 @@ instruments:
     urls:
       bpk: https://peraturan.bpk.go.id/Details/161909/pp-no-36-tahun-2021
       peraturan_go_id: https://peraturan.go.id/id/pp-no-36-tahun-2021
+    pdf_url: https://peraturan.go.id/files/pp36-2021bt.pdf
+    penjelasan_pdf_url: https://peraturan.go.id/files/pp36-2021pjl.pdf
+    text_layer: typeset
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -136,6 +161,10 @@ instruments:
     urls:
       bpk: https://peraturan.bpk.go.id/Details/270269/pp-no-51-tahun-2023
       peraturan_go_id: https://peraturan.go.id/id/pp-no-51-tahun-2023
+    pdf_url: https://peraturan.bpk.go.id/Download/328142/PP%20Nomor%2051%20Tahun%202023.pdf
+    text_layer: ocr
+    parse:
+      own_numbering: roman
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -152,6 +181,10 @@ instruments:
     urls:
       bpk: https://peraturan.bpk.go.id/Details/339037/pp-no-49-tahun-2025
       peraturan_go_id: https://www.peraturan.go.id/id/pp-no-49-tahun-2025
+    pdf_url: https://peraturan.bpk.go.id/Download/402111/PP%20Nomor%2049%20Tahun%202025.pdf
+    text_layer: ocr
+    parse:
+      own_numbering: roman
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -168,6 +201,8 @@ instruments:
     urls:
       mkri_pdf: https://www.mkri.id/public/content/persidangan/putusan/putusan_sidang_19%20PUU%202011-TELAH%20BACA%2020-06-2012.pdf
       mkri_resume: https://www.mkri.id/public/content/persidangan/resume/resume_puu_19_2011.pdf
+    pdf_url: https://www.mkri.id/public/content/persidangan/putusan/putusan_sidang_19%20PUU%202011-TELAH%20BACA%2020-06-2012.pdf
+    text_layer: typeset
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -186,6 +221,8 @@ instruments:
     urls:
       mkri_pdf: https://www.mkri.id/public/content/persidangan/putusan/putusan_mkri_8240_1637822490.pdf
       bpk_pdf: https://peraturan.bpk.go.id/DownloadUjiMateri/160/putusan_mkri_8240.pdf
+    pdf_url: https://www.mkri.id/public/content/persidangan/putusan/putusan_mkri_8240_1637822490.pdf
+    text_layer: typeset
     approved_on: null
     promulgated_on: null
     in_force_on: null
@@ -204,6 +241,10 @@ instruments:
     urls:
       bpk: https://peraturan.bpk.go.id/Details/348708/permenaker-no-7-tahun-2026
       kemnaker: https://jdih.kemnaker.go.id/peraturan/detail/3027/peraturan-menteri-ketenagakerjaan-nomor-7-tahun-2026
+    pdf_url: https://peraturan.bpk.go.id/Download/412369/2026pmnaker007.pdf
+    text_layer: typeset
+    parse:
+      penjelasan: false
     approved_on: null
     promulgated_on: null
     in_force_on: null
