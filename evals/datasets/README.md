@@ -10,6 +10,12 @@
 4. Write `expected_points`: short facts a correct answer must contain, in Bahasa Indonesia.
 5. Set `"source": "human"` and `"review": "done"`. The tests will then require the fields above.
 
+## Current state
+
+All 20 items have answer keys drafted by an AI on 2026-09-30 from secondary sources (see `review-notes-2026-09-30.md` and each item's `notes` for its confidence). They are still `review: needed`. A key becomes `done` only after a person has checked it against the official text; marking unchecked keys as done would turn possible errors into passing tests.
+
+Items dated 2026-09-30 (`status-*`, `abstain-001`, `adversarial-001`) must be re-checked when the new labor law takes effect.
+
 ## Rules
 
 - Keep the two or three items of a `pair_id` in the same split.

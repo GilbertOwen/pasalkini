@@ -49,13 +49,25 @@ def test_cited_instruments_exist(manifest):
         assert not unknown, f"{item.id}: unknown instruments {sorted(unknown)}"
 
 
-def test_no_expected_source_from_a_later_year(manifest):
-    """An instrument numbered with a later year can't have applied on as_of."""
+def test_no_expected_source_that_did_not_exist_yet(manifest):
+    """An instrument can't be expected before it took effect.
+
+    Uses verified dates when they exist. Otherwise falls back to the year in the number, which
+    catches less: Perppu 2/2022 dates from 30 December 2022, so the year alone can't exclude it
+    for mid-2022 questions. MK case numbers carry the filing year, so they are skipped until
+    their dates are verified.
+    """
     for item in ITEMS:
         for instrument_id in {sid.split("/")[0] for sid in item.expected_sources}:
-            year = manifest.get(instrument_id).year
-            if year is not None and manifest.get(instrument_id).kind != "PUTUSAN_MK":
-                assert year <= item.as_of.year, f"{item.id}: {instrument_id} is from {year}"
+            instrument = manifest.get(instrument_id)
+            if instrument.dates_verified:
+                assert instrument.in_force_on <= item.as_of, (
+                    f"{item.id}: {instrument_id} took effect on {instrument.in_force_on}"
+                )
+            elif instrument.year is not None and instrument.kind != "PUTUSAN_MK":
+                assert instrument.year <= item.as_of.year, (
+                    f"{item.id}: {instrument_id} is from {instrument.year}"
+                )
 
 
 def test_test_split_is_roughly_a_third():

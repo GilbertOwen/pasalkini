@@ -33,6 +33,7 @@ def test_active_sources_are_official(manifest):
         "peraturan.go.id",
         "www.peraturan.go.id",
         "www.mkri.id",
+        "jdih.kemnaker.go.id",
     }
     for instrument in manifest.instruments:
         for url in instrument.urls.values():

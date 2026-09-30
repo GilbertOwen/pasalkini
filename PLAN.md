@@ -56,7 +56,7 @@ Worth posting about publicly: end of Phase 2 (the problem, measured), Phase 3 (w
 
 ### The new labor law runs alongside the plan
 
-The DPR has targeted **8 October 2026** for passing the RUU Pelindungan Ketenagakerjaan; the MK deadline is 31 October 2026. PKWT duration and outsourcing were still contested in late September, and reports differ on whether it is a standalone law or a revision of UU 13/2003.
+The DPR has targeted **6 October 2026** (earlier reports said 8 October) for passing the RUU Pelindungan Ketenagakerjaan; the MK deadline is 31 October 2026. PKWT duration and outsourcing were still contested in late September, and reports differ on whether it is a standalone law or a revision of UU 13/2003.
 
 - **Never build on drafts.** Use only the promulgated text (with a law number) from peraturan.go.id or JDIH. A bill approved jointly by the DPR and the government becomes law within 30 days even without the President's signature (UUD 1945 Pasal 20 ayat 5), so expect the official text within about a month of passage.
 - Record three dates: approved by the DPR, promulgated, in force. Also record articles with later start dates and the transitional provisions.
@@ -516,7 +516,7 @@ Set the final targets after the Phase 2 baseline.
 1. Create the repo (Phase 0).
 2. Download UU 13/2003 and Perppu 2/2022 by hand from peraturan.go.id; read Pasal 59, 64 and 156 and how they changed.
 3. Write the first 20 questions.
-4. Watch the 8 October plenary and note the outcome.
+4. Watch the 6 October plenary and note the outcome.
 
 ---
 

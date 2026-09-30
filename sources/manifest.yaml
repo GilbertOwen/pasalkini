@@ -158,6 +158,60 @@ instruments:
     dates_verified: false
     notes: Found 2026-09-30 via the BPK entry for PP 36/2021; cites MK 168 in its considerations.
 
+  - id: mk-19-puu-ix-2011
+    kind: PUTUSAN_MK
+    number: 19/PUU-IX/2011
+    year: 2011
+    title: Pengujian UU 13/2003 Pasal 164 ayat (3) (PHK karena perusahaan tutup untuk efisiensi)
+    status: active
+    parse_scope: Amar putusan only
+    urls:
+      mkri_pdf: https://www.mkri.id/public/content/persidangan/putusan/putusan_sidang_19%20PUU%202011-TELAH%20BACA%2020-06-2012.pdf
+      mkri_resume: https://www.mkri.id/public/content/persidangan/resume/resume_puu_19_2011.pdf
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: >-
+      Reads "perusahaan tutup" in Pasal 164(3) as permanent closure. The PDF file name says it was
+      read on 20-06-2012; confirm from the document.
+
+  - id: mk-91-puu-xviii-2020
+    kind: PUTUSAN_MK
+    number: 91/PUU-XVIII/2020
+    year: 2020
+    title: Pengujian formil UU 11/2020 tentang Cipta Kerja
+    status: active
+    parse_scope: Amar putusan only
+    urls:
+      mkri_pdf: https://www.mkri.id/public/content/persidangan/putusan/putusan_mkri_8240_1637822490.pdf
+      bpk_pdf: https://peraturan.bpk.go.id/DownloadUjiMateri/160/putusan_mkri_8240.pdf
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: >-
+      UU 11/2020 conditionally unconstitutional; it stayed in force during a two-year repair
+      period. Model as a conditional-status event on UU 11/2020 provisions, not a text change.
+
+  - id: permenaker-7-2026
+    kind: PERMEN
+    number: "7"
+    year: 2026
+    title: Pekerjaan Alih Daya
+    status: active
+    parse_scope: Whole regulation
+    urls:
+      bpk: https://peraturan.bpk.go.id/Details/348708/permenaker-no-7-tahun-2026
+      kemnaker: https://jdih.kemnaker.go.id/peraturan/detail/3027/peraturan-menteri-ketenagakerjaan-nomor-7-tahun-2026
+    approved_on: null
+    promulgated_on: null
+    in_force_on: null
+    dates_verified: false
+    notes: >-
+      Limits outsourcing to named fields of work; follows up MK 168. News reports say it was
+      issued and promulgated on 2026-04-30; confirm from the document.
+
   - id: uu-pelindungan-ketenagakerjaan
     kind: UU
     number: null
@@ -171,5 +225,6 @@ instruments:
     in_force_on: null
     dates_verified: false
     notes: >-
-      DPR target for plenary passage: 2026-10-08. MK deadline: 2026-10-31. Rename the id to
+      DPR target for plenary passage: 2026-10-06 (earlier reports said 2026-10-08).
+      MK deadline: 2026-10-31. Rename the id to
       uu-<number>-<year> once promulgated. Never parse drafts.
