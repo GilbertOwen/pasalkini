@@ -1,0 +1,38 @@
+# Change events that no single article or amendment point states, entered by hand.
+# Each one quotes the text it relies on. The rest of the events are extracted automatically
+# from the parsed documents (see sources/events-review.csv).
+
+events:
+  - id: perppu-2-2022/pasal-185:revoke:uu-11-2020
+    op: revoke_instrument
+    effective_on: 2022-12-30
+    source_id: perppu-2-2022/pasal-185
+    target: uu-11-2020
+    order: -10  # before the Perppu's own amendments on the same day
+    note: >-
+      Perppu 2/2022 Pasal 185: "Dengan berlakunya Peraturan Pemerintah Pengganti Undang-Undang
+      ini, Undang-Undang Nomor 11 Tahun 2020 tentang Cipta Kerja ... dicabut dan dinyatakan tidak
+      berlaku." Bunyi pasal yang telah diganti oleh UU 11/2020 berlaku kembali, kecuali diatur ulang
+      oleh Perppu ini.
+
+  - id: mk-91-puu-xviii-2020:conditional:uu-11-2020
+    op: conditional_instrument
+    effective_on: 2021-11-25
+    source_id: mk-91-puu-xviii-2020
+    target: uu-11-2020
+    order: 10
+    note: >-
+      Putusan MK 91/PUU-XVIII/2020 (diucapkan 25 November 2021): UU 11/2020 inkonstitusional
+      bersyarat dan tetap berlaku sampai dilakukan perbaikan dalam tenggang waktu 2 tahun.
+
+  - id: perppu-2-2022/pasal-184:conditional:pp-35-2021,pp-36-2021
+    op: conditional_instrument
+    effective_on: 2022-12-30
+    source_id: perppu-2-2022/pasal-184
+    target: pp-35-2021,pp-36-2021
+    order: 10
+    note: >-
+      Perppu 2/2022 Pasal 184 huruf b: "semua peraturan perundang-undangan yang merupakan
+      peraturan pelaksanaan dari Undang-Undang Nomor 11 Tahun 2020 tentang Cipta Kerja masih
+      tetap berlaku sepanjang tidak bertentangan dengan Peraturan Pemerintah Pengganti
+      Undang-Undang ini."

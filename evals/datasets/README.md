@@ -12,9 +12,22 @@
 
 ## Current state
 
-All 20 items have answer keys drafted by an AI on 2026-09-30 from secondary sources (see `review-notes-2026-09-30.md` and each item's `notes` for its confidence). They are still `review: needed`. A key becomes `done` only after a person has checked it against the official text; marking unchecked keys as done would turn possible errors into passing tests.
+61 items, all `review: needed`. A key becomes `done` only after a person has checked it against the official text; marking unchecked keys as done would turn possible errors into passing tests.
 
-Items dated 2026-09-30 (`status-*`, `abstain-001`, `adversarial-001`) must be re-checked when the new labor law takes effect.
+- The first 20 have keys drafted by an AI on 2026-09-30 from secondary sources (see `review-notes-2026-09-30.md`).
+- The 41 added on 2026-10-01 have keys drafted from the parsed primary texts, with exact article, amendment-point or MK ruling IDs. Each item's `notes` gives its confidence.
+- On 2026-10-01, `must_not_cite` of nine earlier items was extended with superseded wording: the original UU 13/2003 text of articles replaced on 2 November 2020, and UU 11/2020 itself for dates after it was revoked on 30 December 2022.
+
+Items dated 2026-09-30 (`status-*`, `abstain-*`, `adversarial-*`) must be re-checked when the new labor law takes effect.
+
+`uv run pytest` checks that every article-, point- or ruling-level label matches a chunk of the parsed corpus. After changing keys, `uv run pasalkini rescore` recomputes the latest run without generating new answers.
+
+## Kinds of forbidden sources
+
+A `must_not_cite` label can mean either of two things:
+
+- **Not yet in force** on `as_of`: a later instrument, such as `pp-35-2021` for a 2019 question.
+- **No longer in force**: wording that was replaced, such as `uu-13-2003/pasal-59` for a 2022 question (amended by UU 11/2020), or `uu-11-2020` after 30 December 2022.
 
 ## Rules
 

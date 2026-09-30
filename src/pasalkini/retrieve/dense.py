@@ -33,12 +33,19 @@ def _normalise(vectors: np.ndarray) -> np.ndarray:
     return vectors / np.where(norms == 0, 1, norms)
 
 
-def embed_texts(model: str, texts: list[str], num_ctx: int) -> np.ndarray:
+def embed_texts(model: str, texts: list[str], num_ctx: int, unload: bool = False) -> np.ndarray:
+    """Embed in batches. unload=True frees the model's memory after the last batch, so the chat
+    model has the GPU to itself (6 GB is not enough for both)."""
     vectors = []
     for start in range(0, len(texts), BATCH_SIZE):
         batch = texts[start : start + BATCH_SIZE]
+        last = start + BATCH_SIZE >= len(texts)
         response = ollama.embed(
-            model=model, input=batch, truncate=True, options={"num_ctx": num_ctx}
+            model=model,
+            input=batch,
+            truncate=True,
+            options={"num_ctx": num_ctx},
+            keep_alive=0 if unload and last else None,
         )
         vectors += response.embeddings
     return _normalise(np.asarray(vectors, dtype=np.float32))
@@ -82,13 +89,18 @@ class DenseIndex:
     newly_embedded: int = 0
 
     @classmethod
-    def build(cls, model: str, chunks: list[Chunk], num_ctx: int = 8192) -> "DenseIndex":
+    def build(cls, model: str, chunks: list[Chunk], num_ctx: int = 4096) -> "DenseIndex":
         vectors, new = EmbeddingCache(model).vectors_for(chunks, num_ctx)
         return cls(model, chunks, vectors, corpus_fingerprint(chunks), new)
 
-    def embed_query(self, text: str, instruction: bool, num_ctx: int = 8192) -> np.ndarray:
-        query = QUERY_INSTRUCTION + text if instruction else text
-        return embed_texts(self.model, [query], num_ctx)[0]
+    def embed_query(self, text: str, instruction: bool, num_ctx: int = 4096) -> np.ndarray:
+        return self.embed_queries([text], instruction, num_ctx)[0]
+
+    def embed_queries(
+        self, texts: list[str], instruction: bool, num_ctx: int = 4096, unload: bool = False
+    ) -> np.ndarray:
+        queries = [QUERY_INSTRUCTION + t if instruction else t for t in texts]
+        return embed_texts(self.model, queries, num_ctx, unload=unload)
 
     def search(
         self,

@@ -57,13 +57,12 @@ def cmd_spotcheck(args: argparse.Namespace) -> None:
 
 
 def cmd_index(args: argparse.Namespace) -> None:
-    from pasalkini.corpus import load_corpus
-    from pasalkini.pipelines import CONFIGS
+    from pasalkini.pipelines import CONFIGS, load_chunks
     from pasalkini.retrieve.dense import DenseIndex
 
     config = CONFIGS[args.config]
-    chunks = load_corpus()
-    index = DenseIndex.build(config.embed_model, chunks, config.num_ctx)
+    chunks = load_chunks(config)
+    index = DenseIndex.build(config.embed_model, chunks, config.embed_num_ctx)
     print(
         f"Index: {len(chunks)} chunks with {config.embed_model} "
         f"({index.newly_embedded} embedded now, the rest from cache), "
@@ -81,6 +80,68 @@ def cmd_eval(args: argparse.Namespace) -> None:
     print((run_dir / "summary.md").read_text(encoding="utf-8"))
 
 
+def cmd_build(_: argparse.Namespace) -> None:
+    from collections import Counter as Count
+
+    from pasalkini.temporal.store import REPORT_PATH, build
+
+    events, versions, warnings = build()
+    ops = Count(e.op for e in events)
+    statuses = Count(v.status for v in versions)
+    print(f"Events: {len(events)} ({', '.join(f'{k} {v}' for k, v in sorted(ops.items()))})")
+    print(
+        f"Versions: {len(versions)} for {len({v.provision_id for v in versions})} articles "
+        f"({', '.join(f'{k} {v}' for k, v in sorted(statuses.items()))})"
+    )
+    print(f"Warnings: {len(warnings)} (see {REPORT_PATH.relative_to(REPORT_PATH.parents[1])})")
+
+
+def cmd_law(args: argparse.Namespace) -> None:
+    from datetime import date
+
+    from pasalkini.temporal.query import consolidate, format_date, validity
+    from pasalkini.temporal.store import load_versions
+
+    as_of = date.fromisoformat(args.date)
+    articles = consolidate(load_versions(), args.instrument, as_of)
+    if args.pasal:
+        wanted = {f"{args.instrument}/pasal-{p.lower()}" for p in args.pasal}
+        articles = [v for v in articles if v.provision_id in wanted]
+    print(f"{args.instrument} per {format_date(as_of)}: {len(articles)} pasal\n")
+    for v in articles:
+        status = " [BERSYARAT]" if v.status == "conditional" else ""
+        print(f"{v.label}{status}  ({validity(v)}; teks dari {v.source_id})")
+        print(v.text)
+        for ruling in v.rulings:
+            print(f"  -> lihat {ruling}")
+        print()
+
+
+def cmd_history(args: argparse.Namespace) -> None:
+    from pasalkini.temporal.query import history, validity, word_diff
+    from pasalkini.temporal.store import load_versions
+
+    versions = history(load_versions(), args.provision)
+    if not versions:
+        print(f"No versions for {args.provision}")
+        return
+    previous = None
+    for v in versions:
+        print(f"== {v.label} [{v.status}] {validity(v)}")
+        print(
+            f"   teks dari {v.source_id}"
+            + (f"; putusan: {', '.join(v.rulings)}" if v.rulings else "")
+        )
+        if previous is None or not args.diff:
+            print(v.text)
+        elif previous.text != v.text:
+            print(word_diff(previous.text, v.text))
+        else:
+            print("(bunyi sama dengan versi sebelumnya)")
+        print()
+        previous = v
+
+
 def cmd_rescore(args: argparse.Namespace) -> None:
     from pasalkini.evals.runner import RUNS_DIR, rescore
 
@@ -94,14 +155,24 @@ def cmd_ask(args: argparse.Namespace) -> None:
     from datetime import date
 
     from pasalkini.answer.generate import generate
-    from pasalkini.corpus import load_corpus
-    from pasalkini.pipelines import CONFIGS
+    from pasalkini.pipelines import CONFIGS, load_chunks
     from pasalkini.retrieve.dense import DenseIndex
+    from pasalkini.retrieve.temporal import retrieve
 
     config = CONFIGS[args.config]
-    index = DenseIndex.build(config.embed_model, load_corpus(), config.num_ctx)
-    hits = index.search(index.embed_query(args.question, config.query_instruction), config.top_k)
-    as_of = date.fromisoformat(args.date) if args.date else None
+    index = DenseIndex.build(config.embed_model, load_chunks(config), config.embed_num_ctx)
+    date_hint = date.fromisoformat(args.date) if args.date else None
+    retrieval = retrieve(
+        index,
+        index.embed_query(args.question, config.query_instruction),
+        args.question,
+        config.top_k,
+        date_hint=date_hint,
+        date_filter=config.date_filter,
+        history_cues=config.history_cues,
+    )
+    hits = retrieval.hits
+    as_of = retrieval.as_of if config.date_filter else date_hint
     result = generate(
         config.chat_model,
         args.question,
@@ -119,7 +190,10 @@ def cmd_ask(args: argparse.Namespace) -> None:
         print("\nSumber:", ", ".join(result.answer.citations) or "(tidak ada)")
     else:
         print(result.raw)
-    print(f"\nDiambil ({config.name}, tanpa filter tanggal):")
+    if retrieval.as_of and config.date_filter:
+        print(f"\nDiambil ({config.name}, per {retrieval.as_of}, mode {retrieval.mode}):")
+    else:
+        print(f"\nDiambil ({config.name}, tanpa filter tanggal):")
     for chunk, score in hits:
         print(f"  {score:.3f}  {chunk.source_id:<40} {chunk.title}")
     print(f"\n{result.seconds:.1f} s, {result.prompt_tokens} + {result.output_tokens} tokens")
@@ -154,13 +228,24 @@ def main() -> None:
     evaluate.add_argument("config", nargs="?", default="baseline", choices=sorted(CONFIGS))
     evaluate.add_argument("--retrieval-only", action="store_true", help="skip answer generation")
 
+    sub.add_parser("build", help="build the temporal model (events and article versions)")
+
+    law = sub.add_parser("law", help="an instrument as it stood on a date")
+    law.add_argument("instrument", help="e.g. uu-13-2003")
+    law.add_argument("--date", required=True, help="YYYY-MM-DD")
+    law.add_argument("--pasal", nargs="+", help="only these articles, e.g. 59 61A")
+
+    hist = sub.add_parser("history", help="every version of one article")
+    hist.add_argument("provision", help="e.g. uu-13-2003/pasal-79")
+    hist.add_argument("--diff", action="store_true", help="show word-level changes")
+
     rescore = sub.add_parser("rescore", help="recompute a saved run against the current keys")
     rescore.add_argument("run", nargs="?", help="run folder name (default: the latest)")
 
     ask = sub.add_parser("ask", help="ask one question")
     ask.add_argument("question")
     ask.add_argument("--date", help="the date that decides which law applies (YYYY-MM-DD)")
-    ask.add_argument("--config", default="baseline", choices=sorted(CONFIGS))
+    ask.add_argument("--config", default="temporal", choices=sorted(CONFIGS))
 
     args = parser.parse_args()
     handlers = {
@@ -170,6 +255,9 @@ def main() -> None:
         "index": cmd_index,
         "eval": cmd_eval,
         "rescore": cmd_rescore,
+        "build": cmd_build,
+        "law": cmd_law,
+        "history": cmd_history,
         "ask": cmd_ask,
     }
     handlers.get(args.command, cmd_status)(args)

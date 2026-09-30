@@ -75,6 +75,8 @@ class ItemResult(BaseModel):
     retrieved: list[tuple[str, float]]  # top 10 with cosine scores
     context_ids: list[str]  # the top-k chunks given to the model
     retrieval_ms: float
+    as_of_used: date | None = None  # the date retrieval filtered on (None: no filter)
+    retrieval_mode: str = "plain"  # plain | as_of | history
     answer: str | None = None
     citations_raw: list[str] = []  # exactly as the model wrote them
     json_ok: bool | None = None

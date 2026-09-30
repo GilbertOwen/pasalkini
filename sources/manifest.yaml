@@ -4,6 +4,8 @@
 # - Only official government sources (see the legal review).
 # - Dates come from each document's own text (closing clause / signature block),
 #   never from news or memory. Set dates_verified: true once you have checked them.
+#   Dates marked dates_verified: false were read by the parser from each document's closing
+#   (docs/parse-report.md) and are provisional until checked against the PDF.
 # - approved_on: joint DPR-government approval (UU only)
 #   promulgated_on: diundangkan (for MK decisions: the date it was pronounced)
 #   in_force_on: mulai berlaku
@@ -23,8 +25,8 @@ instruments:
     pdf_url: https://peraturan.bpk.go.id/Download/31128/UU%20Nomor%2013%20Tahun%202003.pdf
     text_layer: typeset
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2003-03-25
+    in_force_on: 2003-03-25
     dates_verified: false
     notes: >-
       Base law. BPK lists earlier MK rulings on Pasal 158-160, 170, 171, 186, 96 and 153;
@@ -46,8 +48,8 @@ instruments:
       scope_start: BAB IV
       scope_end: BAB V
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2020-11-02
+    in_force_on: 2020-11-02
     dates_verified: false
     notes: Revoked and replaced by Perppu 2/2022. BPK marks it as no longer in force.
 
@@ -67,8 +69,8 @@ instruments:
       scope_start: BAB IV
       scope_end: BAB V
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2022-12-30
+    in_force_on: 2022-12-30
     dates_verified: false
     notes: Enacted as law by UU 6/2023 with the same wording.
 
@@ -86,8 +88,8 @@ instruments:
     parse:
       penjelasan: false
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2023-03-31
+    in_force_on: 2023-03-31
     dates_verified: false
     notes: Changes the legal basis of the Perppu text, not its wording.
 
@@ -104,8 +106,8 @@ instruments:
     pdf_url: https://www.mkri.id/public/content/persidangan/putusan/putusan_mkri_11215_1730375514.pdf
     text_layer: typeset
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2024-10-31
+    in_force_on: 2024-10-31
     dates_verified: false
     notes: >-
       The case number year (2023) is the filing year; the ruling was pronounced in 2024.
@@ -127,8 +129,8 @@ instruments:
     penjelasan_pdf_url: https://peraturan.go.id/files/pp35-2021pjl.pdf
     text_layer: typeset
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2021-02-02
+    in_force_on: 2021-02-02
     dates_verified: false
     notes: Implementing regulation of the Cipta Kerja labor cluster.
 
@@ -146,8 +148,8 @@ instruments:
     penjelasan_pdf_url: https://peraturan.go.id/files/pp36-2021pjl.pdf
     text_layer: typeset
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2021-02-02
+    in_force_on: 2021-02-02
     dates_verified: false
     notes: Amended by PP 51/2023 and PP 49/2025.
 
@@ -166,8 +168,8 @@ instruments:
     parse:
       own_numbering: roman
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2023-11-10
+    in_force_on: 2023-11-10
     dates_verified: false
     notes: Changes the minimum wage formula.
 
@@ -186,8 +188,8 @@ instruments:
     parse:
       own_numbering: roman
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2025-12-17
+    in_force_on: 2025-12-17
     dates_verified: false
     notes: Found 2026-09-30 via the BPK entry for PP 36/2021; cites MK 168 in its considerations.
 
@@ -204,8 +206,8 @@ instruments:
     pdf_url: https://www.mkri.id/public/content/persidangan/putusan/putusan_sidang_19%20PUU%202011-TELAH%20BACA%2020-06-2012.pdf
     text_layer: typeset
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2012-06-20
+    in_force_on: 2012-06-20
     dates_verified: false
     notes: >-
       Reads "perusahaan tutup" in Pasal 164(3) as permanent closure. The PDF file name says it was
@@ -224,8 +226,8 @@ instruments:
     pdf_url: https://www.mkri.id/public/content/persidangan/putusan/putusan_mkri_8240_1637822490.pdf
     text_layer: typeset
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2021-11-25
+    in_force_on: 2021-11-25
     dates_verified: false
     notes: >-
       UU 11/2020 conditionally unconstitutional; it stayed in force during a two-year repair
@@ -246,8 +248,8 @@ instruments:
     parse:
       penjelasan: false
     approved_on: null
-    promulgated_on: null
-    in_force_on: null
+    promulgated_on: 2026-04-30
+    in_force_on: 2026-04-30
     dates_verified: false
     notes: >-
       Limits outsourcing to named fields of work; follows up MK 168. News reports say it was

@@ -9,6 +9,8 @@ import re
 
 import pytest
 
+from pasalkini.corpus import load_corpus
+from pasalkini.evals.metrics import matches
 from pasalkini.evals.schema import load_golden
 from pasalkini.ingest.models import ParsedDocument
 from pasalkini.paths import PROCESSED_DIR
@@ -95,15 +97,13 @@ def test_uu_6_2023_is_only_the_enacting_articles():
     assert [a.number for a in load("uu-6-2023").articles] == ["1", "2"]
 
 
-def test_golden_article_ids_exist():
-    """Every article- or point-level source ID used by an evaluation item exists in the data."""
+def test_golden_source_ids_exist():
+    """Every article-, point- or ruling-level label matches at least one chunk of the corpus."""
+    load("uu-13-2003")  # skip when nothing has been parsed yet
+    chunk_ids = [chunk.source_id for chunk in load_corpus()]
     manifest_ids = load_manifest().ids()
     for item in load_golden():
-        for sid in item.expected_sources + item.must_not_cite:
-            instrument_id, *rest = sid.split("/")
-            if not rest or instrument_id not in manifest_ids:
+        for label in item.expected_sources + item.must_not_cite:
+            if "/" not in label or label.split("/")[0] not in manifest_ids:
                 continue
-            doc = load(instrument_id)
-            ids = {a.source_id for a in doc.articles}
-            ids |= {p.source_id for a in doc.articles for p in a.points}
-            assert sid in ids, f"{item.id}: {sid} not found in parsed {instrument_id}"
+            assert any(matches(c, label) for c in chunk_ids), f"{item.id}: {label} matches no chunk"

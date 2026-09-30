@@ -15,15 +15,16 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import numpy as np
 import ollama
 
 from pasalkini.answer.generate import generate
-from pasalkini.corpus import load_corpus
 from pasalkini.evals.metrics import ItemResult, percent, score, summary_table
 from pasalkini.evals.schema import EvalItem, load_golden
 from pasalkini.paths import EVALS_DIR, GOLDEN_PATH, ROOT
-from pasalkini.pipelines import CONFIGS, PipelineConfig
+from pasalkini.pipelines import CONFIGS, PipelineConfig, load_chunks
 from pasalkini.retrieve.dense import DenseIndex
+from pasalkini.retrieve.temporal import retrieve
 
 RUNS_DIR = EVALS_DIR / "runs"
 
@@ -43,11 +44,26 @@ def model_digests(names: list[str]) -> dict[str, str]:
 
 
 def evaluate_item(
-    item: EvalItem, config: PipelineConfig, index: DenseIndex, retrieval_only: bool
+    item: EvalItem,
+    config: PipelineConfig,
+    index: DenseIndex,
+    query: np.ndarray,
+    retrieval_only: bool,
 ) -> ItemResult:
+    # The date picker supplies the date unless the date is only in the question text, in which
+    # case the pipeline has to read it from there.
+    date_hint = None if item.date_in_question else item.as_of
     started = time.perf_counter()
-    query = index.embed_query(item.question, config.query_instruction, config.num_ctx)
-    hits = index.search(query, k=max(10, config.top_k))
+    retrieval = retrieve(
+        index,
+        query,
+        item.question,
+        max(10, config.top_k),
+        date_hint=date_hint,
+        date_filter=config.date_filter,
+        history_cues=config.history_cues,
+    )
+    hits = retrieval.hits
     retrieval_ms = (time.perf_counter() - started) * 1000
 
     context = [chunk for chunk, _ in hits[: config.top_k]]
@@ -60,13 +76,15 @@ def evaluate_item(
         retrieved=[(chunk.source_id, round(similarity, 4)) for chunk, similarity in hits],
         context_ids=[chunk.source_id for chunk in context],
         retrieval_ms=round(retrieval_ms, 1),
+        as_of_used=retrieval.as_of,
+        retrieval_mode=retrieval.mode,
     )
     if retrieval_only:
         return score(result, item)
 
-    # The date goes to the model only when it would come from the date picker; otherwise it is
-    # inside the question text and the pipeline has to read it from there.
-    as_of = None if item.date_in_question else item.as_of
+    # A date-aware pipeline tells the model the date it used; the baseline passes on only the
+    # date picker's date.
+    as_of = retrieval.as_of if config.date_filter else date_hint
     generation = generate(
         config.chat_model,
         item.question,
@@ -180,10 +198,18 @@ def write_grading_sheet(run_dir: Path, results: list[ItemResult]) -> None:
 def run(config_name: str, retrieval_only: bool = False) -> Path:
     config = CONFIGS[config_name]
     items = load_golden()
-    chunks = load_corpus()
+    chunks = load_chunks(config)
     if not chunks:
         raise SystemExit("No parsed documents. Run `uv run pasalkini parse` first.")
-    index = DenseIndex.build(config.embed_model, chunks, config.num_ctx)
+    index = DenseIndex.build(config.embed_model, chunks, config.embed_num_ctx)
+    # Embed every question first, then free the embedding model's memory: on a 6 GB GPU the
+    # embedding and chat models swap in and out if they are used alternately.
+    queries = index.embed_queries(
+        [item.question for item in items],
+        config.query_instruction,
+        config.embed_num_ctx,
+        unload=not retrieval_only,
+    )
 
     started_at = datetime.now()
     suffix = "-retrieval" if retrieval_only else ""
@@ -192,7 +218,7 @@ def run(config_name: str, retrieval_only: bool = False) -> Path:
 
     results = []
     for n, item in enumerate(items, start=1):
-        result = evaluate_item(item, config, index, retrieval_only)
+        result = evaluate_item(item, config, index, queries[n - 1], retrieval_only)
         results.append(result)
         stale = "stale-cited" if result.stale_cited else ""
         print(
