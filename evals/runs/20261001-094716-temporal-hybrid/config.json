@@ -1,0 +1,44 @@
+{
+  "config": {
+    "name": "temporal-hybrid",
+    "description": "Ablation: temporal with dense + BM25 fused by RRF.",
+    "corpus": "versions",
+    "date_filter": true,
+    "history_cues": true,
+    "retriever": "hybrid",
+    "rewrite_query": false,
+    "chunk_headers": false,
+    "embed_model": "qwen3-embedding:0.6b",
+    "chat_model": "qwen3.5:4b",
+    "top_k": 5,
+    "query_instruction": false,
+    "think": false,
+    "temperature": 0.0,
+    "seed": 42,
+    "num_ctx": 8192,
+    "embed_num_ctx": 4096,
+    "max_chars_per_chunk": 2500,
+    "max_answer_tokens": 1024
+  },
+  "retrieval_only": false,
+  "git": {
+    "commit": "e0dce25a911da46a4c94363198a4a1958894ffe7",
+    "dirty": false
+  },
+  "models": {
+    "qwen3-embedding:0.6b": "ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d",
+    "qwen3.5:4b": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd"
+  },
+  "corpus": {
+    "chunks": 848,
+    "fingerprint": "4187af9e33b47fd8",
+    "newly_embedded": 0
+  },
+  "dataset": {
+    "items": 61,
+    "reviewed": 0,
+    "sha256": "2480ce86a1e3ff6b5699792fb4f9c0cc6fd7865d5712348e6786b391dcb1a2d8"
+  },
+  "started_at": "2026-10-01T09:47:16",
+  "finished_at": "2026-10-01T09:52:06"
+}
