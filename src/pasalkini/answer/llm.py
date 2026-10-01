@@ -31,6 +31,14 @@ class Reply[T: BaseModel]:
     seconds: float
 
 
+def unload(model: str) -> None:
+    """Free the model, so that the next call loads it afresh. At temperature 0 the same prompt
+    can still get a different answer from a server that has been running for a while (seen on
+    2026-10-01: one refusal became a calculation between two runs of the same code, and came
+    back after a reload). An evaluation run therefore starts from a fresh load."""
+    CLIENT.generate(model=model, keep_alive=0)
+
+
 def chat_json[T: BaseModel](
     options: ChatOptions, messages: list[dict], schema: type[T]
 ) -> Reply[T]:

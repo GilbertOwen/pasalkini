@@ -23,6 +23,7 @@ import ollama
 
 from pasalkini.answer.agent import Agent
 from pasalkini.answer.generate import generate
+from pasalkini.answer.llm import unload
 from pasalkini.answer.pipeline import Pipeline
 from pasalkini.evals.metrics import ItemResult, percent, pipeline_table, score, summary_table
 from pasalkini.evals.schema import EvalItem, load_golden
@@ -338,6 +339,8 @@ def run(config_name: str, retrieval_only: bool = False, split: str | None = None
     if verified:
         kind = Agent if config.answer_mode == "agent" else Pipeline
         pipeline = kind(config, chunks, index, lexical, topics)
+    if not retrieval_only:
+        unload(config.chat_model)  # every run answers from a freshly loaded model
 
     git = git_state()  # the code this run executes is the code on disk now, not at the end
     started_at = datetime.now()
