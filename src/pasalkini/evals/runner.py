@@ -15,6 +15,7 @@ import time
 from datetime import datetime
 from pathlib import Path
 
+import httpx
 import ollama
 
 from pasalkini.answer.generate import generate
@@ -38,7 +39,9 @@ def git_state() -> dict:
             ["git", *args], cwd=ROOT, capture_output=True, text=True, check=False
         ).stdout.strip()
 
-    return {"commit": git("rev-parse", "HEAD"), "dirty": bool(git("status", "--porcelain"))}
+    # Run folders are outputs, not code: without the exclusion every run would look dirty.
+    status = git("status", "--porcelain", "--", ".", ":(exclude)evals/runs")
+    return {"commit": git("rev-parse", "HEAD"), "dirty": bool(status)}
 
 
 def model_digests(names: list[str]) -> dict[str, str]:
@@ -82,18 +85,29 @@ def evaluate_item(
     # A date-aware pipeline tells the model the date it used; the baseline passes on only the
     # date picker's date.
     as_of = retrieval.as_of if config.date_filter else date_hint
-    generation = generate(
-        config.chat_model,
-        item.question,
-        as_of,
-        context,
-        max_chars=config.max_chars_per_chunk,
-        think=config.think,
-        temperature=config.temperature,
-        seed=config.seed,
-        num_ctx=config.num_ctx,
-        max_tokens=config.max_answer_tokens,
-    )
+    # One retry: a request can hang or fail once (a laptop sleep, the GPU still holding the
+    # embedding model). A second failure is recorded as a failed answer and the run goes on.
+    for attempt in (1, 2):
+        try:
+            generation = generate(
+                config.chat_model,
+                item.question,
+                as_of,
+                context,
+                max_chars=config.max_chars_per_chunk,
+                think=config.think,
+                temperature=config.temperature,
+                seed=config.seed,
+                num_ctx=config.num_ctx,
+                max_tokens=config.max_answer_tokens,
+            )
+            break
+        except (httpx.HTTPError, ollama.ResponseError, ConnectionError) as error:
+            print(f"    {item.id}: attempt {attempt} failed: {error!r}", flush=True)
+            failure = f"ERROR: {error!r}"
+    else:
+        result.answer = failure
+        return score(result, item)
     result.answer = generation.answer.answer if generation.answer else generation.raw
     result.citations_raw = generation.answer.citations if generation.answer else []
     result.json_ok = generation.answer is not None
@@ -214,34 +228,39 @@ def run(config_name: str, retrieval_only: bool = False) -> Path:
         texts, config.query_instruction, config.embed_num_ctx, unload=not retrieval_only
     )
 
+    git = git_state()  # the code this run executes is the code on disk now, not at the end
     started_at = datetime.now()
     suffix = "-retrieval" if retrieval_only else ""
     run_dir = RUNS_DIR / f"{started_at:%Y%m%d-%H%M%S}-{config.name}{suffix}"
     run_dir.mkdir(parents=True)
 
     results = []
-    for n, item in enumerate(items, start=1):
-        search = make_search(
-            config.retriever,
-            max(10, config.top_k),
-            index,
-            queries[n - 1],
-            lexical,
-            texts[n - 1],
-        )
-        result = evaluate_item(item, config, search, retrieval_only)
-        results.append(result)
-        stale = "stale-cited" if result.stale_cited else ""
-        print(
-            f"  [{n:>3}/{len(items)}] {item.id:<18} recall@5={result.recall_at_5} {stale}",
-            flush=True,
-        )
+    # Written as it goes, so a run that dies part way still leaves its answers.
+    with (run_dir / "outputs.jsonl").open("w", encoding="utf-8") as outputs:
+        for n, item in enumerate(items, start=1):
+            search = make_search(
+                config.retriever,
+                max(10, config.top_k),
+                index,
+                queries[n - 1],
+                lexical,
+                texts[n - 1],
+            )
+            result = evaluate_item(item, config, search, retrieval_only)
+            results.append(result)
+            outputs.write(result.model_dump_json() + "\n")
+            outputs.flush()
+            stale = "stale-cited" if result.stale_cited else ""
+            print(
+                f"  [{n:>3}/{len(items)}] {item.id:<18} recall@5={result.recall_at_5} {stale}",
+                flush=True,
+            )
 
     models = [config.embed_model] + ([] if retrieval_only else [config.chat_model])
     meta = {
         "config": config.model_dump(),
         "retrieval_only": retrieval_only,
-        "git": git_state(),
+        "git": git,
         "models": model_digests(models),
         "corpus": {
             "chunks": len(chunks),
@@ -257,9 +276,6 @@ def run(config_name: str, retrieval_only: bool = False) -> Path:
         "finished_at": datetime.now().isoformat(timespec="seconds"),
     }
     (run_dir / "config.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
-    with (run_dir / "outputs.jsonl").open("w", encoding="utf-8") as f:
-        for result in results:
-            f.write(result.model_dump_json() + "\n")
     write_summary(run_dir, meta, results)
     if not retrieval_only:
         write_grading_sheet(run_dir, results)

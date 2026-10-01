@@ -32,8 +32,12 @@ DATE_IN_TEXT = re.compile(
     r"\b(?:(\d{1,2})\s+)?(" + "|".join(MONTHS) + r")\s+(\d{4})\b", re.IGNORECASE
 )
 YEAR_IN_TEXT = re.compile(r"\btahun\s+(\d{4})\b", re.IGNORECASE)
+# 'dulu' and 'sebelumnya' are everyday adverbs ('saya dulu bekerja', 'abaikan instruksi
+# sebelumnya'), so they count only a few words after a word for the law ('aturan sebelumnya').
+LAW_WORD = r"(?:aturan|ketentuan|peraturan|undang-undang|uu|pasal|hukum|bunyi|versi)"
 HISTORY_CUES = re.compile(
-    r"\b(berubah|perubahan|masih berlaku|dulu|sebelumnya|dibandingkan|riwayat|sejarah)\b",
+    r"\b(berubah|perubahan|masih berlaku|dibandingkan|riwayat|sejarah"
+    rf"|{LAW_WORD}(?:\s+\S+){{0,3}}?\s+(?:dulu|sebelumnya))\b",
     re.IGNORECASE,
 )
 

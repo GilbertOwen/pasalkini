@@ -19,6 +19,10 @@ SYSTEM_PROMPT = (
     "Ini informasi hukum, bukan nasihat hukum."
 )
 
+# Answers take under a minute; a request still open after this has hung (for example across a
+# laptop sleep), and the caller can retry.
+CLIENT = ollama.Client(timeout=300)
+
 
 class BaselineAnswer(BaseModel):
     answer: str = Field(description="Jawaban singkat dalam bahasa Indonesia")
@@ -73,7 +77,7 @@ def generate(
 ) -> Generation:
     user, truncated = build_user_message(question, as_of, chunks, max_chars)
     started = time.perf_counter()
-    response = ollama.chat(
+    response = CLIENT.chat(
         model=model,
         messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}],
         format=BaselineAnswer.model_json_schema(),
