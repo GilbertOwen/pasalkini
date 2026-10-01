@@ -8,13 +8,11 @@
 """
 
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 
-import numpy as np
-
 from pasalkini.corpus import Chunk
-from pasalkini.retrieve.dense import DenseIndex
 
 MONTHS = {
     "januari": 1,
@@ -60,21 +58,18 @@ class Retrieval:
 
 
 def retrieve(
-    index: DenseIndex,
-    query_vector: np.ndarray,
+    search: Callable[[Callable[[Chunk], bool] | None], list[tuple[Chunk, float]]],
     question: str,
-    k: int,
     *,
     date_hint: date | None,
     date_filter: bool,
     history_cues: bool,
     today: date | None = None,
 ) -> Retrieval:
+    """Decide the date and the filter; `search(allowed)` does the ranking (see search.py)."""
     if not date_filter:
-        return Retrieval(index.search(query_vector, k), date_hint, "plain")
+        return Retrieval(search(None), date_hint, "plain")
     as_of = date_hint or extract_date(question) or today or date.today()
     if history_cues and HISTORY_CUES.search(question):
-        hits = index.search(query_vector, k, allowed=lambda c: c.valid_from <= as_of)
-        return Retrieval(hits, as_of, "history")
-    hits = index.search(query_vector, k, allowed=lambda c: c.valid_on(as_of))
-    return Retrieval(hits, as_of, "as_of")
+        return Retrieval(search(lambda c: c.valid_from <= as_of), as_of, "history")
+    return Retrieval(search(lambda c: c.valid_on(as_of)), as_of, "as_of")

@@ -46,20 +46,16 @@ def ids(retrieval) -> list[str]:
 
 def test_date_filter_keeps_only_what_applied_on_the_date():
     r = retrieve(
-        INDEX,
-        QUERY,
+        lambda allowed: INDEX.search(QUERY, 5, allowed),
         "Berapa lama?",
-        5,
         date_hint=date(2019, 6, 1),
         date_filter=True,
         history_cues=True,
     )
     assert ids(r) == ["uu-1/pasal-1"] and r.mode == "as_of"
     r = retrieve(
-        INDEX,
-        QUERY,
+        lambda allowed: INDEX.search(QUERY, 5, allowed),
         "Berapa lama?",
-        5,
         date_hint=date(2022, 6, 1),
         date_filter=True,
         history_cues=True,
@@ -69,10 +65,8 @@ def test_date_filter_keeps_only_what_applied_on_the_date():
 
 def test_history_question_sees_old_versions_but_not_future_ones():
     r = retrieve(
-        INDEX,
-        QUERY,
+        lambda allowed: INDEX.search(QUERY, 5, allowed),
         "Apa yang berubah?",
-        5,
         date_hint=date(2022, 6, 1),
         date_filter=True,
         history_cues=True,
@@ -82,10 +76,8 @@ def test_history_question_sees_old_versions_but_not_future_ones():
 
 def test_date_read_from_the_question_when_no_date_picker():
     r = retrieve(
-        INDEX,
-        QUERY,
+        lambda allowed: INDEX.search(QUERY, 5, allowed),
         "Saya di-PHK Maret 2019",
-        5,
         date_hint=None,
         date_filter=True,
         history_cues=True,
@@ -95,10 +87,8 @@ def test_date_read_from_the_question_when_no_date_picker():
 
 def test_without_filter_everything_is_ranked():
     r = retrieve(
-        INDEX,
-        QUERY,
+        lambda allowed: INDEX.search(QUERY, 5, allowed),
         "Berapa lama?",
-        5,
         date_hint=date(2019, 6, 1),
         date_filter=False,
         history_cues=False,

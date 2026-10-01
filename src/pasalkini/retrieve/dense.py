@@ -5,6 +5,7 @@ database. Vectors are cached by (model, text hash) in data/processed/index/, so 
 changed chunks are embedded again.
 """
 
+import hashlib
 from collections.abc import Callable
 from dataclasses import dataclass
 
@@ -62,15 +63,18 @@ class EmbeddingCache:
             data = np.load(self.path)
             self.vectors = dict(zip(data["hashes"].tolist(), data["vectors"], strict=True))
 
-    def vectors_for(self, chunks: list[Chunk], num_ctx: int) -> tuple[np.ndarray, int]:
-        """Vectors in chunk order, and how many had to be embedded now."""
-        missing = [c for c in chunks if c.text_hash not in self.vectors]
+    def vectors_for(self, texts: list[str], num_ctx: int) -> tuple[np.ndarray, int]:
+        """Vectors in text order, and how many had to be embedded now."""
+        keys = [hashlib.sha256(t.encode("utf-8")).hexdigest() for t in texts]
+        missing = {
+            key: text for key, text in zip(keys, texts, strict=True) if key not in self.vectors
+        }
         if missing:
-            fresh = embed_texts(self.model, [c.text for c in missing], num_ctx)
-            for chunk, vector in zip(missing, fresh, strict=True):
-                self.vectors[chunk.text_hash] = vector
+            fresh = embed_texts(self.model, list(missing.values()), num_ctx)
+            for key, vector in zip(missing, fresh, strict=True):
+                self.vectors[key] = vector
             self.save()
-        return np.stack([self.vectors[c.text_hash] for c in chunks]), len(missing)
+        return np.stack([self.vectors[k] for k in keys]), len(missing)
 
     def save(self) -> None:
         INDEX_DIR.mkdir(parents=True, exist_ok=True)
@@ -89,8 +93,12 @@ class DenseIndex:
     newly_embedded: int = 0
 
     @classmethod
-    def build(cls, model: str, chunks: list[Chunk], num_ctx: int = 4096) -> "DenseIndex":
-        vectors, new = EmbeddingCache(model).vectors_for(chunks, num_ctx)
+    def build(
+        cls, model: str, chunks: list[Chunk], num_ctx: int = 4096, with_titles: bool = False
+    ) -> "DenseIndex":
+        """with_titles: embed 'title + text' (contextual header) instead of the text alone."""
+        texts = [f"{c.title}\n{c.text}" if with_titles else c.text for c in chunks]
+        vectors, new = EmbeddingCache(model).vectors_for(texts, num_ctx)
         return cls(model, chunks, vectors, corpus_fingerprint(chunks), new)
 
     def embed_query(self, text: str, instruction: bool, num_ctx: int = 4096) -> np.ndarray:

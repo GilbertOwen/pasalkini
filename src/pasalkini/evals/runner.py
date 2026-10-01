@@ -15,7 +15,6 @@ import time
 from datetime import datetime
 from pathlib import Path
 
-import numpy as np
 import ollama
 
 from pasalkini.answer.generate import generate
@@ -24,7 +23,11 @@ from pasalkini.evals.schema import EvalItem, load_golden
 from pasalkini.paths import EVALS_DIR, GOLDEN_PATH, ROOT
 from pasalkini.pipelines import CONFIGS, PipelineConfig, load_chunks
 from pasalkini.retrieve.dense import DenseIndex
+from pasalkini.retrieve.hybrid import expand_query
+from pasalkini.retrieve.lexical import BM25Index
+from pasalkini.retrieve.search import Search, make_search
 from pasalkini.retrieve.temporal import retrieve
+from pasalkini.sources import load_topics
 
 RUNS_DIR = EVALS_DIR / "runs"
 
@@ -44,21 +47,15 @@ def model_digests(names: list[str]) -> dict[str, str]:
 
 
 def evaluate_item(
-    item: EvalItem,
-    config: PipelineConfig,
-    index: DenseIndex,
-    query: np.ndarray,
-    retrieval_only: bool,
+    item: EvalItem, config: PipelineConfig, search: Search, retrieval_only: bool
 ) -> ItemResult:
     # The date picker supplies the date unless the date is only in the question text, in which
     # case the pipeline has to read it from there.
     date_hint = None if item.date_in_question else item.as_of
     started = time.perf_counter()
     retrieval = retrieve(
-        index,
-        query,
+        search,
         item.question,
-        max(10, config.top_k),
         date_hint=date_hint,
         date_filter=config.date_filter,
         history_cues=config.history_cues,
@@ -95,6 +92,7 @@ def evaluate_item(
         temperature=config.temperature,
         seed=config.seed,
         num_ctx=config.num_ctx,
+        max_tokens=config.max_answer_tokens,
     )
     result.answer = generation.answer.answer if generation.answer else generation.raw
     result.citations_raw = generation.answer.citations if generation.answer else []
@@ -201,14 +199,19 @@ def run(config_name: str, retrieval_only: bool = False) -> Path:
     chunks = load_chunks(config)
     if not chunks:
         raise SystemExit("No parsed documents. Run `uv run pasalkini parse` first.")
-    index = DenseIndex.build(config.embed_model, chunks, config.embed_num_ctx)
+    index = DenseIndex.build(
+        config.embed_model, chunks, config.embed_num_ctx, with_titles=config.chunk_headers
+    )
+    lexical = BM25Index(chunks) if config.retriever != "dense" else None
+    topics = load_topics()
+    texts = [
+        expand_query(item.question, topics) if config.rewrite_query else item.question
+        for item in items
+    ]
     # Embed every question first, then free the embedding model's memory: on a 6 GB GPU the
     # embedding and chat models swap in and out if they are used alternately.
     queries = index.embed_queries(
-        [item.question for item in items],
-        config.query_instruction,
-        config.embed_num_ctx,
-        unload=not retrieval_only,
+        texts, config.query_instruction, config.embed_num_ctx, unload=not retrieval_only
     )
 
     started_at = datetime.now()
@@ -218,7 +221,15 @@ def run(config_name: str, retrieval_only: bool = False) -> Path:
 
     results = []
     for n, item in enumerate(items, start=1):
-        result = evaluate_item(item, config, index, queries[n - 1], retrieval_only)
+        search = make_search(
+            config.retriever,
+            max(10, config.top_k),
+            index,
+            queries[n - 1],
+            lexical,
+            texts[n - 1],
+        )
+        result = evaluate_item(item, config, search, retrieval_only)
         results.append(result)
         stale = "stale-cited" if result.stale_cited else ""
         print(

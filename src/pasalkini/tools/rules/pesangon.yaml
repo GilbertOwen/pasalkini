@@ -1,0 +1,76 @@
+# Severance rules by legal regime. Each multiplier names the article it comes from; all were read
+# from the parsed primary texts on 2026-10-01 and still need a person's review.
+#
+# pesangon / upmk: multiples of the tables below ("1 kali ketentuan Pasal 156 ayat (2)").
+# uang_pisah: separation pay set by the employment contract, company rules or collective
+# agreement, so the calculator cannot compute it.
+
+tables:
+  # months of wage by completed years of service: [from_years, months]
+  pesangon: [[0, 1], [1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [7, 8], [8, 9]]
+  upmk: [[0, 0], [3, 2], [6, 3], [9, 4], [12, 5], [15, 6], [18, 7], [21, 8], [24, 10]]
+
+regimes:
+  - id: uu-13-2003
+    valid_from: 2003-03-25
+    valid_to: 2020-11-02
+    tables_basis: uu-13-2003/pasal-156
+    pesangon_is_minimum: true  # Pasal 156 ayat (2): "paling sedikit"
+    housing_medical_pct: 15  # Pasal 156 ayat (4) huruf c, of pesangon and/or UPMK
+    reasons:
+      pelanggaran_setelah_sp3: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-161}
+      perubahan_status_pekerja_menolak: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-163}
+      perubahan_status_pengusaha_menolak: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-163}
+      tutup_rugi_2_tahun: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-164}
+      force_majeure: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-164}
+      tutup_efisiensi:
+        pesangon: 2
+        upmk: 1
+        basis: uu-13-2003/pasal-164
+        note: >-
+          Sejak Putusan MK 19/PUU-IX/2011 (20 Juni 2012), "perusahaan tutup" berarti tutup
+          permanen atau tutup tidak untuk sementara waktu.
+      pailit: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-165}
+      meninggal: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-166}
+      pensiun_tanpa_program_pensiun: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-167}
+      pengusaha_melakukan_pelanggaran: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-169}
+      sakit_berkepanjangan: {pesangon: 2, upmk: 2, basis: uu-13-2003/pasal-172}
+      mengundurkan_diri: {pesangon: 0, upmk: 0, uang_pisah: true, basis: uu-13-2003/pasal-162}
+      mangkir: {pesangon: 0, upmk: 0, uang_pisah: true, basis: uu-13-2003/pasal-168}
+
+  - id: celah-2020
+    valid_from: 2020-11-02
+    valid_to: 2021-02-02
+    unsupported: >-
+      UU 11/2020 menghapus pasal alasan PHK UU 13/2003 dan menyerahkan besaran per alasan kepada
+      Peraturan Pemerintah, sedangkan PP 35/2021 baru berlaku 2 Februari 2021. Hitungan untuk PHK
+      pada tanggal ini perlu dicek manual.
+
+  - id: pp-35-2021
+    valid_from: 2021-02-02
+    tables_basis: pp-35-2021/pasal-40
+    pesangon_is_minimum: false  # Pasal 40 ayat (2): "diberikan dengan ketentuan"
+    minimum_from: 2024-10-31  # MK 168/PUU-XXI/2023 read Pasal 156 ayat (2) as "paling sedikit"
+    minimum_basis: mk-168-puu-xxi-2023/amar-22
+    housing_medical_pct: 0  # removed by UU 11/2020; not restored by MK 168 (amar 24)
+    reasons:
+      penggabungan_peleburan_pemisahan: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-41}
+      pengambilalihan: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-42}
+      pengambilalihan_syarat_berubah: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-42}
+      efisiensi_karena_rugi: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-43}
+      efisiensi_mencegah_rugi: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-43}
+      tutup_rugi_2_tahun: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-44}
+      tutup_bukan_rugi: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-44}
+      force_majeure_tutup: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-45}
+      force_majeure_tidak_tutup: {pesangon: 0.75, upmk: 1, basis: pp-35-2021/pasal-45}
+      pkpu_karena_rugi: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-46}
+      pkpu_bukan_rugi: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-46}
+      pailit: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-47}
+      pengusaha_melakukan_pelanggaran: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-48}
+      mengundurkan_diri: {pesangon: 0, upmk: 0, uang_pisah: true, basis: pp-35-2021/pasal-50}
+      mangkir: {pesangon: 0, upmk: 0, uang_pisah: true, basis: pp-35-2021/pasal-51}
+      pelanggaran_setelah_sp3: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-52}
+      pelanggaran_mendesak: {pesangon: 0, upmk: 0, uang_pisah: true, basis: pp-35-2021/pasal-52}
+      sakit_berkepanjangan: {pesangon: 2, upmk: 1, basis: pp-35-2021/pasal-55}
+      pensiun: {pesangon: 1.75, upmk: 1, basis: pp-35-2021/pasal-56}
+      meninggal: {pesangon: 2, upmk: 1, basis: pp-35-2021/pasal-57}

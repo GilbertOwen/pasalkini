@@ -87,6 +87,36 @@ def test_sectoral_minimum_wage_returns_in_pp_49_2025(versions):
     assert "sektoral provinsi" in v2026.text and v2026.source_id == "pp-49-2025/pasal-i/angka-6"
 
 
+def test_mk_168_point_numbers_match_the_parsed_perppu():
+    """MK 168 cites articles by the Perppu's point numbers ('Pasal 79 ... dalam Pasal 81 angka
+    25'). Each must be the point where the parser found that article: an independent check of
+    the OCR repair of point numbers."""
+    import json
+    import re
+
+    from pasalkini.paths import PROCESSED_DIR
+
+    mk_path = PROCESSED_DIR / "mk-168-puu-xxi-2023.json"
+    perppu_path = PROCESSED_DIR / "perppu-2-2022.json"
+    if not (mk_path.exists() and perppu_path.exists()):
+        pytest.skip("documents not parsed")
+    perppu = json.loads(perppu_path.read_text(encoding="utf-8"))
+    points = {p["number"]: p for p in perppu["articles"][1]["points"]}
+    cited = 0
+    for ruling in json.loads(mk_path.read_text(encoding="utf-8"))["amar"]:
+        for article, point in re.findall(
+            r"Pasal\s+(\d+[A-Z]?)(?:\s+ayat\s+\(\w+\))?(?:\s+huruf\s+\w)?\s+dalam\s+Pasal\s+81"
+            r"\s+angka\s+(\d+)",
+            ruling["text"],
+        ):
+            quoted = [e["number"] for e in points[int(point)]["articles"]]
+            assert article in quoted, (
+                f"amar {ruling['number']}: Pasal {article} not in angka {point}"
+            )
+            cited += 1
+    assert cited >= 20
+
+
 def test_unamended_article_has_one_version(versions):
     mine = [v for v in versions if v.provision_id == "uu-13-2003/pasal-1"]
     assert len(mine) == 1 and mine[0].valid_to is None

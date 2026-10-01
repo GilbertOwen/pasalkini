@@ -69,6 +69,7 @@ def generate(
     temperature: float,
     seed: int,
     num_ctx: int,
+    max_tokens: int = 1024,
 ) -> Generation:
     user, truncated = build_user_message(question, as_of, chunks, max_chars)
     started = time.perf_counter()
@@ -77,7 +78,12 @@ def generate(
         messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}],
         format=BaselineAnswer.model_json_schema(),
         think=think,
-        options={"temperature": temperature, "seed": seed, "num_ctx": num_ctx},
+        options={
+            "temperature": temperature,
+            "seed": seed,
+            "num_ctx": num_ctx,
+            "num_predict": max_tokens,
+        },
     )
     seconds = time.perf_counter() - started
     raw = response.message.content

@@ -62,7 +62,9 @@ def cmd_index(args: argparse.Namespace) -> None:
 
     config = CONFIGS[args.config]
     chunks = load_chunks(config)
-    index = DenseIndex.build(config.embed_model, chunks, config.embed_num_ctx)
+    index = DenseIndex.build(
+        config.embed_model, chunks, config.embed_num_ctx, with_titles=config.chunk_headers
+    )
     print(
         f"Index: {len(chunks)} chunks with {config.embed_model} "
         f"({index.newly_embedded} embedded now, the rest from cache), "
@@ -142,6 +144,14 @@ def cmd_history(args: argparse.Namespace) -> None:
         previous = v
 
 
+def cmd_compare(args: argparse.Namespace) -> None:
+    from pasalkini.evals.compare import compare
+    from pasalkini.evals.runner import RUNS_DIR
+
+    table = compare([RUNS_DIR / r for r in args.runs], split=args.split, category=args.category)
+    print(table)
+
+
 def cmd_rescore(args: argparse.Namespace) -> None:
     from pasalkini.evals.runner import RUNS_DIR, rescore
 
@@ -157,16 +167,25 @@ def cmd_ask(args: argparse.Namespace) -> None:
     from pasalkini.answer.generate import generate
     from pasalkini.pipelines import CONFIGS, load_chunks
     from pasalkini.retrieve.dense import DenseIndex
+    from pasalkini.retrieve.hybrid import expand_query
+    from pasalkini.retrieve.lexical import BM25Index
+    from pasalkini.retrieve.search import make_search
     from pasalkini.retrieve.temporal import retrieve
+    from pasalkini.sources import load_topics
 
     config = CONFIGS[args.config]
-    index = DenseIndex.build(config.embed_model, load_chunks(config), config.embed_num_ctx)
+    chunks = load_chunks(config)
+    index = DenseIndex.build(
+        config.embed_model, chunks, config.embed_num_ctx, with_titles=config.chunk_headers
+    )
+    lexical = BM25Index(chunks) if config.retriever != "dense" else None
+    text = expand_query(args.question, load_topics()) if config.rewrite_query else args.question
+    query_vector = index.embed_query(text, config.query_instruction, config.embed_num_ctx)
+    search = make_search(config.retriever, config.top_k, index, query_vector, lexical, text)
     date_hint = date.fromisoformat(args.date) if args.date else None
     retrieval = retrieve(
-        index,
-        index.embed_query(args.question, config.query_instruction),
+        search,
         args.question,
-        config.top_k,
         date_hint=date_hint,
         date_filter=config.date_filter,
         history_cues=config.history_cues,
@@ -183,6 +202,7 @@ def cmd_ask(args: argparse.Namespace) -> None:
         temperature=config.temperature,
         seed=config.seed,
         num_ctx=config.num_ctx,
+        max_tokens=config.max_answer_tokens,
     )
     print("Informasi hukum, bukan nasihat hukum. Dijawab oleh AI.\n")
     if result.answer:
@@ -239,6 +259,11 @@ def main() -> None:
     hist.add_argument("provision", help="e.g. uu-13-2003/pasal-79")
     hist.add_argument("--diff", action="store_true", help="show word-level changes")
 
+    comp = sub.add_parser("compare", help="compare saved runs side by side")
+    comp.add_argument("runs", nargs="+", help="run folder names under evals/runs")
+    comp.add_argument("--split", choices=["dev", "test"], help="only this split")
+    comp.add_argument("--category", help="only this category, e.g. temporal_trap")
+
     rescore = sub.add_parser("rescore", help="recompute a saved run against the current keys")
     rescore.add_argument("run", nargs="?", help="run folder name (default: the latest)")
 
@@ -255,6 +280,7 @@ def main() -> None:
         "index": cmd_index,
         "eval": cmd_eval,
         "rescore": cmd_rescore,
+        "compare": cmd_compare,
         "build": cmd_build,
         "law": cmd_law,
         "history": cmd_history,
