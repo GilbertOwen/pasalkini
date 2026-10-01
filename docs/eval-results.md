@@ -11,7 +11,7 @@ Status on 2026-10-01, after Phase 5. This page is rewritten as the evaluation gr
 
 ## 1. Does the answer cite law that did not apply on the date?
 
-All 78 questions, runs of 2026-10-01 10:38 to 11:07 at commit `b80bc1e`. 57 questions name sources that must not be cited; 67 have an expected source.
+All 78 questions, runs of 2026-10-01 10:46 to 11:21 (commit `b80bc1e`; `pasalkini` at `3a63d25`). 57 questions name sources that must not be cited; 67 have an expected source.
 
 | Pipeline | Stale text given to the model | Answer cites a stale source | Answer cites an expected source | Cites an ID it was not given | Median s |
 |---|---|---|---|---|---|
@@ -19,7 +19,7 @@ All 78 questions, runs of 2026-10-01 10:38 to 11:07 at commit `b80bc1e`. 57 ques
 | `versions`: each chunk labelled with its validity dates, no filter | 82% (47/57) | 65% (37/57) | 66% (44/67) | 16% (11/69) | 3.1 |
 | `temporal`: only versions that applied on the date are searched | 0% (0/57) | 0% (0/56) | 88% (58/66) | 7% (5/68) | 3.3 |
 | `temporal-hybrid`: the same, dense + BM25 | 0% (0/57) | 0% (0/57) | 84% (56/67) | 7% (5/70) | 3.0 |
-| `pasalkini`: the Phase 5 pipeline | 0% (0/57) | 0% (0/57) | 93% (62/67) | 0% (0/68) | 6.9 |
+| `pasalkini`: the Phase 5 pipeline | 0% (0/57) | 0% (0/57) | 91% (61/67) | 0% (0/68) | 6.7 |
 
 - **Labels are not enough.** Telling the model when each text applied (`versions`) left stale citations where they were, at 65%, and it cited IDs it was not given more often (16%). Removing outdated text before the search is what works.
 - On the 36 held-out questions: stale citations 58% (14/24) for `baseline` and 0% (0/24) for `temporal`, `temporal-hybrid` and `pasalkini`; an expected source cited in 47% (14/30), 90% (27/30), 83% (25/30) and 93% (28/30).
@@ -47,20 +47,21 @@ Development split, 42 questions, retrieval only (runs of 2026-10-01 09:34, commi
 
 ## 3. The answer pipeline (Phase 5)
 
-Run `20261001-103807-pasalkini`, all 78 questions.
+Run `20261001-111235-pasalkini`, all 78 questions.
 
 | Check | All | Development | Held out |
 |---|---|---|---|
 | Refused or abstained exactly when it should | 100% (78/78) | 42/42 | 36/36 |
 | Kind of question classified correctly | 100% (71/71) | 38/38 | 33/33 |
 | Date read from the question | 100% (10/10) | 5/5 | 5/5 |
-| First answer passes every citation check | 90% (61/68) | 92% (35/38) | 87% (26/30) |
-| Sent back once for repair | 10% (7/68) | 3 | 4 |
-| Final answer still had a citation dropped | 3% (2/68) | 0 | 2 |
+| First answer passes every citation check | 88% (60/68) | 95% (36/38) | 80% (24/30) |
+| Sent back once for repair | 12% (8/68) | 2 | 6 |
+| Final answer still had a citation dropped | 6% (4/68) | 1 | 3 |
 
 - The held-out column is the one to trust for refusals and the calculator: the out-of-scope list in the classifier prompt was tuned on the development split, and the 17 questions that make refusals, calculations and injected instructions testable were written afterwards and not looked at one by one.
 - Citations shown to the user are valid by construction: only citations that passed the check are shown, in the source's own words.
-- The pipeline takes about twice as long as plain RAG (6.9 s against 3.1 s): one extra call to classify the question, longer answers with quotes, and a second answer in 10% of cases.
+- The pipeline takes about twice as long as plain RAG (6.7 s against 3.1 s): one extra call to classify the question, longer answers with quotes, and a second answer in 12% of cases.
+- **How much these numbers move by themselves.** The run before this one (10:38, commit `b80bc1e`) differed only by a prompt rule about conditional MK rulings and a display fix, neither aimed at citations. It had an expected source cited in 62/67 and 61/68 first answers passing. A difference of one or two questions between configurations means nothing at this size.
 
 ### Where answerable questions are lost
 
@@ -70,9 +71,9 @@ Run `20261001-103807-pasalkini`, all 78 questions.
 |---|---|---|---|---|
 | `baseline` | 85% (57/67) | 64% (43/67) | 10 | 14 |
 | `temporal-hybrid` | 93% (62/67) | 84% (56/67) | 5 | 6 |
-| `pasalkini` | 93% (62/67) | 93% (62/67) | 5 | 0 |
+| `pasalkini` | 93% (62/67) | 91% (61/67) | 5 | 1 |
 
-The answer step now uses every expected source it is given. What is left to win is in retrieval: 5 questions, 4 of them temporal traps (for example "is the severance table a minimum or a fixed amount?", whose answer sits in the long table of Pasal 156).
+The answer step now uses nearly every expected source it is given (61 of 62). What is left to win is in retrieval: 5 questions, 4 of them temporal traps (for example "is the severance table a minimum or a fixed amount?", whose answer sits in the long table of Pasal 156).
 
 ### The citation check, before and after
 
@@ -82,13 +83,14 @@ The first version of the check wanted the quote word for word. On the 61-questio
 - it put a right quote under a wrong ID (`uu-13-2003/pasal-81` for text in `perppu-2-2022/pasal-81/angka-25`);
 - it cited the ruling that conditions an article by the ID shown in the article's notes.
 
-The check now locates the quote (word for word, or 80% of its words in order within a stretch about twice its length, and every number), shows the source's own words, and files the citation under the chunk that has them. Replaying the same saved first drafts through it, with no model calls: development 27/38 → 35/38, held out 10/19 → 12/19. On a fresh run: 90% pass first time.
+The check now locates the quote (word for word, or 80% of its words in order within a stretch about twice its length, and every number), shows the source's own words, and files the citation under the chunk that has them. Replaying the same saved first drafts through it, with no model calls: development 27/38 → 35/38, held out 10/19 → 12/19. On fresh runs: 88% to 90% pass first time.
 
 ## 4. What the checks do not catch
 
 Seen while reading development answers:
 
 - **Right citation, wrong sentence.** "Pasal 90 dihapus sejak 30 Desember 2022" for an article deleted since 2 November 2020: the model took the start of the current wording as the date of the change. Code now states the deletion date in the timeline. Re-enacted wordings still need a diff between versions (`BACKLOG.md`).
+- **A conditional ruling read as a repeal.** Asked whether Pasal 64 still applies, the model wrote that ayat (2) "tidak memiliki kekuatan hukum mengikat" and left out "sepanjang tidak dimaknai ...". The prompt now explains such rulings and the answer keeps the condition, but its paraphrase of the Court's reading is still loose. The timeline stated by code and the quoted ruling are the reliable part.
 - **Overclaiming.** "Kewajiban membayar pesangon bersifat mutlak" in the answer to a prompt-injection question. The citations under it were fine.
 - **A wrong fact read from the question** goes straight into an exact calculation. The first calculator run chose the reason `pensiun` for a company that closed after two years of losses and returned Rp63 million instead of Rp18 million, because the model never sees the JSON schema that lists the reason codes. The codes and their meanings are now in the prompt, and the result states the reason, wage and length of service it used so the user can check them.
 

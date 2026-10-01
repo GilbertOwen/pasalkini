@@ -34,12 +34,12 @@ Provisional: the 78 answer keys are drafts that a person still has to check, and
 | `baseline`: plain RAG, dates ignored | 65% (37/57) | 64% (43/67) | not measured |
 | `versions`: every chunk labelled with its validity dates, no filter | 65% (37/57) | 66% (44/67) | not measured |
 | `temporal`: only versions that applied on the date are searched | 0% (0/56) | 88% (58/66) | not measured |
-| `pasalkini`: date filter, checked citations, calculator, refusals | 0% (0/57) | 93% (62/67) | 100% (78/78) |
+| `pasalkini`: date filter, checked citations, calculator, refusals | 0% (0/57) | 91% (61/67) | 100% (78/78) |
 
 - **Labelling is not enough.** Telling the model when each text applied left stale citations at 65%. Removing outdated text before the search takes them to 0%.
 - **On the 36 held-out questions** the full pipeline cites an expected source in 93% (28/30) and refuses or abstains correctly on all 36; plain RAG cites stale law in 58% (14/24).
-- **The citation check** passes 90% of first answers and sends the rest back once. Every citation shown is in the source's own words.
-- **What is left is retrieval.** The answer step uses every expected source it is given; in 5 of 67 questions the source never reaches it. Recall@5 is 0.77, below the 0.90 target.
+- **The citation check** passes 88% of first answers and sends the rest back once. Every citation shown is in the source's own words.
+- **What is left is retrieval.** The answer step uses 61 of the 62 expected sources it is given; in 5 of 67 questions the source never reaches it. Recall@5 is 0.77, below the 0.90 target.
 - **Cost:** about 7 s per question against 3 s for plain RAG.
 
 The full tables, the retrieval ablation, how the citation check was fixed and what the checks cannot catch are in [docs/eval-results.md](docs/eval-results.md). Each run's configuration, model digests and git commit are in `evals/runs/<run>/summary.md`.
