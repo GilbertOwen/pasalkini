@@ -1,6 +1,6 @@
 # Evaluation results
 
-Status on 2026-10-01, at the end of Phase 6 (`PLAN.md`).
+Status on 2026-10-01, at the end of Phase 6 (`PLAN.md`). Section 9 was added on 2026-10-02, when the app first ran (Phase 7).
 
 ## Read this first
 
@@ -233,9 +233,27 @@ The first version of the check wanted the quote word for word. On the 61-questio
 
 The check now locates the quote (word for word, or 80% of its words in order within a stretch about twice its length, and every number), shows the source's own words, and files the citation under the chunk that has them. Phase 6 added two cases found the same way: a locator the model writes in front of a quoted item ("(2) d. istirahat panjang ..."), and a closing bracket scanned as a letter ("ayat (2l."). First picks now pass in 98% of questions.
 
-## 9. Known gaps
+## 9. Outside the set: what trying the app showed (2026-10-02)
+
+The development questions were tuned on, and all 78 are short and clean. Questions typed into the app on the day it first ran were neither. Of about a dozen, three came out wrong and one flawed:
+
+| Question (date 2019) | What happened |
+|---|---|
+| "Nama saya …, HP 0812-…. Berapa lama maksimal PKWT?" | Answered from Pasal 123, the term of a collective agreement. The same question without the name and number is answered correctly from Pasal 59. Fixed: the app takes personal data out before the search |
+| "Berapa lama maksimal kontrak kerja waktu tertentu?" | The model quoted Pasal 59 ayat (3) and said, with high confidence, that there is no maximum. Ayat (4) sets it. With "PKWT" in place of the long form, the answer is correct |
+| "Berapa lama masa percobaan untuk karyawan kontrak?" | "3 months", from Pasal 60, which is about permanent employment. Pasal 58 forbids probation in a fixed-term contract |
+| "Berapa jam maksimal lembur dalam sehari?" (2021) | Right limit and source; the second sentence garbles what the limit excludes |
+
+Read the 33 to 36 of 42 in section 2 with this in mind. The held-out numbers (24 of 36 correct by a generous judge, 7 wrong) are the better guide to a new question, and a question phrased unlike the set may do worse.
+
+**One fix was tried and reverted.** Answers of the form "no rule exists" were withheld, so that the model would pick other quotes (commit `2ed18ac`, run `20261002-002134-pasalkini-dev`). It fired on 2 of the 42 development questions, both on long leave, where "there is no duty" can be a right reading of "dapat": one correct answer became partly right and one partly right answer became wrong, as the second pick took the article on weekly rest. The paraphrase above changed from "no maximum" to "not yet in force", which is also wrong. Nothing improved, so it was taken out (`5b1ea7f`). The same run shows the noise of section 6 once more: a third answer, which the change did not touch, flipped from correct to wrong.
+
+What would be worth trying, measured against paraphrased and trap questions kept apart from the 78: turning the question into a short legal query before the search, and letting the answer step read the whole of a short article it quoted from.
+
+## 10. Known gaps
 
 - **No person has graded anything.** The answer keys, the reading of the development answers and the judge are all AI work.
+- **The questions are cleaner than real ones** (section 9).
 - The model's reasoning: two development answers are wrong with the right passage in front of it (section 2). A larger model is the obvious thing to try; it does not fit the 6 GB GPU together with anything else.
 - Two held-out questions are declined that Phase 5 answered.
 - "Not yet in force" answers rest on PasalKini's sources, which hold 12 instruments. A rule that existed earlier in a regulation outside the corpus would be reported as starting later. The answer says so in a note.

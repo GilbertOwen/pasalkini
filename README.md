@@ -8,7 +8,7 @@ Ask a labor-law question and a date. PasalKini answers with the law that applied
 
 ## Status
 
-Phase 6 of the [build plan](PLAN.md): date-aware retrieval and the checked answer pipeline work end to end on a local model, and the answers have been read and graded. The evaluation set has 78 dated questions whose answer keys are still drafts awaiting human review, and the grading was done by an AI, so all numbers are provisional.
+Phase 7 of the [build plan](PLAN.md): the checked answer pipeline now runs as an app, with an HTTP API and four screens, on a local model. The answers have been read and graded. The evaluation set has 78 dated questions whose answer keys are still drafts awaiting human review, and the grading was done by an AI, so all numbers are provisional.
 
 ## Why
 
@@ -24,6 +24,7 @@ Indonesian labor law has changed several times: UU 13/2003, the Cipta Kerja law 
 4. **Pick the passages, check them, then answer.** The model first picks quotes from the sources it was given. Code uses each quote to find the passage: word for word, or nearly, but never with a different number, and only in a text that applied on the date. The model then writes one to three sentences from those passages alone, starting from the words it answers from and any limit on them. Code checks that the answer mentions no number or article it was not given. Only passages that passed are shown, in the source's own words; if none is left, or the model finds no answer in them, the answer abstains and shows what it found.
 5. **Let code say what code knows.** Whether a named article still applies, and since when, comes from the temporal model without a model call. Severance and PKWT compensation come from `src/pasalkini/tools/pesangon.py`, whose rules are versioned by date and cite their articles; the model only reads the facts from the question, and its reason for a dismissal must be in the question's own words. A Constitutional Court ruling on a quoted article is read out by rule ("only applies if read as ..."). If nothing in the law of the date answers the question but a later article does, the answer says the rule was not yet in force. An answer about a past date says which cited articles changed later.
 6. **Refuse what is out of scope.** Questions outside labor law, or requests to act as the user's lawyer or promise an outcome, get a refusal and a referral.
+7. **Serve it.** One service sits behind an HTTP API and four screens. Around the pipeline it takes personal data out of the question before anything else sees it, answers a repeated question from a cache tied to the corpus and the code, and reports a model server that is down as such.
 
 ## Results so far
 
@@ -59,17 +60,54 @@ The full tables, what each change did, the judge's agreement, the run-to-run var
 
 ## Quick start
 
-Needs [uv](https://docs.astral.sh/uv/) and [Ollama](https://ollama.com) with `qwen3.5:4b` and `qwen3-embedding:0.6b`.
+Needs [uv](https://docs.astral.sh/uv/) and [Ollama](https://ollama.com) with the two models pulled (`ollama pull qwen3.5:4b` and `ollama pull qwen3-embedding:0.6b`, about 4 GB together).
 
 ```bash
 uv sync
-uv run pasalkini download      # official PDFs, politely (about 180 MB)
-uv run pasalkini parse         # PDFs to articles, amendment points and MK rulings
-uv run pasalkini build         # events and article versions with their validity dates
+uv run pasalkini setup     # once: download the official PDFs (about 180 MB, one request every 3 s),
+                           # parse them, build the article versions, embed them
+uv run pasalkini serve     # the app: http://127.0.0.1:8000
+```
+
+`setup` is four steps that can also be run one by one: `download`, `parse`, `build`, `index`. Without the app:
+
+```bash
 uv run pasalkini ask "Berapa jam maksimal lembur dalam sehari?" --date 2019-06-01
 uv run pasalkini eval pasalkini   # the evaluation set, with a summary in evals/runs/
 uv run pytest
 ```
+
+## The app
+
+`uv run pasalkini serve` starts one process with the screens at `/ui` and the API beside them (`/docs` describes it). It listens on this machine only: there is no login and no rate limit.
+
+| Screen | What it does |
+|---|---|
+| **Tanya** | A question and an optional date. Shows which stage is running, then the answer with the date it used, its sources in their own words, what changed after that date, and notes. Each cited article opens in full, as it stood on that date |
+| **Riwayat Pasal** | One article's timeline, every version in full, and the word-level changes between any two |
+| **Konsolidasi** | A law or regulation as it stood on a date: each article in the wording that applied |
+| **Kalkulator Pesangon** | Severance and PKWT compensation under the rules of the dismissal date, each line with its legal basis. Computed by rule; no model |
+
+| Endpoint | |
+|---|---|
+| `POST /ask` | A question, answered as server-sent events: `stage` while it works, then `answer` |
+| `POST /ask/json` | The same, in one response |
+| `GET /provisions/{id}?as_of=` | An article or ruling point as it stood on a date |
+| `GET /provisions/{id}/history` | Its versions, with word-level changes |
+| `GET /laws`, `GET /laws/{id}?as_of=` | What can be browsed; one instrument on a date |
+| `POST /calc/pesangon`, `POST /calc/kompensasi-pkwt`, `GET /calc/pesangon/reasons` | The calculator |
+| `GET /health` | Corpus, model server, cache |
+
+The answer is not streamed word by word: nothing the model writes is shown before code has checked it. Only `/ask` needs Ollama; the other screens and endpoints read the temporal model and keep working without it (`/health` then says `degraded`).
+
+What the app does around the pipeline:
+
+- **Personal data.** NIK, NPWP, phone numbers, e-mail addresses and names after "nama saya" are replaced by placeholders before the search, the model, the log or a trace see the question. A name and a phone number in front of a question also sent the search to the wrong article; without them it found the right one.
+- **Log.** One line per question in `data/logs/`, without the answer, deleted after 30 days.
+- **Cache.** A repeated question about the same date is answered at once. The key holds the corpus fingerprint, the last day the law changed, the model settings and a fingerprint of the code, so a cached answer is never older than what it was made from. Questions with personal data are not cached.
+- **Nothing leaves the machine.** The model is local, the screens load no web fonts, and Gradio's usage statistics are off.
+- **Tracing (optional).** `uv sync --extra tracing`, then set `PASALKINI_TRACE_ENDPOINT=http://localhost:6006/v1/traces` to see every stage and model call of a question in [Arize Phoenix](https://github.com/Arize-ai/phoenix) (`uvx arize-phoenix serve`). Tested against a local OTLP collector; not yet looked at in Phoenix itself.
+- **Docker.** `docker compose -f docker/compose.yaml up --build` runs the app in a container and leaves Ollama on the host. Written but not yet run: Docker Desktop is not installed on the development machine.
 
 Other commands:
 
@@ -85,6 +123,10 @@ Other commands:
 | `pasalkini agreement <run>` | The judge against grades given by reading (`grades-*.csv`) |
 | `pasalkini spotcheck` | 30 random parsed articles to compare with the PDFs |
 | `pasalkini rulings` | Each MK ruling point as the answer step reads it, for review |
+| `pasalkini gate` | The check CI runs: retrieval on a snapshot kept in git, without Ollama. Fails if Recall@5 drops or outdated text reaches a question's top 5 |
+| `pasalkini fixture` | Remake that snapshot after the corpus or the questions change |
+
+Adding a law, regulation or MK ruling: [docs/runbook-new-instrument.md](docs/runbook-new-instrument.md). Every push runs lint, the tests and the retrieval gate (`.github/workflows/ci.yml`).
 
 ## Layout
 
@@ -96,19 +138,24 @@ Other commands:
 | `sources/topics.yaml` | Topics and the everyday words people use for them |
 | `evals/datasets/golden.jsonl` | Dated test questions |
 | `evals/runs/` | One folder per evaluation run: config, summary, grading sheet, grades by reading and by the judge |
-| `docs/` | Evaluation results, architecture, parse and temporal-model reports, spot-check sheet |
+| `evals/fixtures/retrieval.npz` | Snapshot of the corpus and question embeddings for the CI retrieval gate |
+| `docs/` | Evaluation results, architecture, runbook for a new instrument, parse and temporal-model reports, spot-check sheet |
 | `src/pasalkini/ingest/` | Download, PDF extraction, parsing |
 | `src/pasalkini/temporal/` | Events, version building, point-in-time queries |
 | `src/pasalkini/retrieve/`, `evals/` | Retrieval, evaluation |
 | `src/pasalkini/answer/` | The answer pipeline: understanding, context, picking and checking passages, calculator bridge |
 | `src/pasalkini/tools/` | Severance and PKWT-compensation calculator with its dated rules |
-| `PLAN.md` | Build plan, phases 0 to 9 |
+| `src/pasalkini/service.py` | What the app does, behind both the API and the screens |
+| `src/pasalkini/api/`, `ui/` | The HTTP API (FastAPI) and the four screens (Gradio) |
+| `src/pasalkini/privacy/`, `cache.py`, `trace.py` | Redaction and the 30-day question log; the answer cache; stage spans |
+| `docker/`, `.github/workflows/` | Container files; CI |
+| `PLAN.md`, `CHANGELOG.md` | Build plan, phases 0 to 9; what changed in the corpus and the app |
 
 ## Data and compliance
 
 - **Sources:** only official government publications: [peraturan.go.id](https://peraturan.go.id), the [BPK regulation database](https://peraturan.bpk.go.id) and [mkri.id](https://www.mkri.id). Laws, regulations and court decisions carry no copyright in Indonesia (UU 28/2014 Pasal 42).
 - **Collection:** respects robots.txt, rate-limited, identified User-Agent, every document stored with its URL, retrieval date and checksum. No commercial legal databases are scraped.
-- **Privacy:** development uses synthetic questions only. Any future public version redacts personal data before logging.
+- **Privacy:** development uses synthetic questions only. The app removes personal data from a question before anything is searched, generated or logged, keeps its question log without answers for 30 days, and runs on the user's own machine. It is not hosted publicly; that needs the checklist in the legal review first (privacy notice, registration as an electronic system operator).
 - **Models:** runs locally with Ollama by default.
 
 Full legal review: [PasalKini: Project Brief and Legal Review](https://docs.google.com/document/d/1K8jFcSevIa8nTQAQv3emnZQDBh0L_d-MJR_yHxkwDcM/edit).

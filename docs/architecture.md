@@ -50,6 +50,29 @@ question (+ date) ─► date: read from the question, else the date picker, els
                  ─► notes by code: rulings on the cited articles, what changed after the date
 ```
 
+## The app
+
+```
+browser ─► /ui  (ui/app.py, Gradio: Tanya, Riwayat Pasal, Konsolidasi, Kalkulator) ─┐
+client  ─► API  (api/main.py, FastAPI: /ask as server-sent events, /provisions,      ├─► service.py
+                 /laws, /calc, /health) ───────────────────────────────────────────┘
+
+Service.ask(question, date)
+  ─► redact: NIK, NPWP, phone, e-mail, cued names ─► placeholders                    code
+  ─► cache: same question, date, corpus, law state, settings and code? ─► answer     SQLite
+  ─► one question at a time (one GPU)
+  ─► embed the question on the CPU, then the pipeline above; each stage is a span
+     that is told to the waiting user and, if asked for, sent to Phoenix
+  ─► model server down ─► "model unavailable" (HTTP 503), not a crash
+  ─► store in the cache (unless personal data was found or a reply was cut short)
+  ─► log one line: redacted question, date, kind, sources, timings; no answer text
+
+Service.provision / history / law / severance / pkwt_compensation
+  ─► the temporal model and the calculator's rules; no model call
+```
+
+`uv run pasalkini serve` runs all of it in one process on 127.0.0.1.
+
 ## Key ideas
 
 | Idea | Where | Why |
@@ -66,6 +89,12 @@ question (+ date) ─► date: read from the question, else the date picker, els
 | What code can state, the model does not write | `answer/context.py`, `tools/pesangon.py`, `temporal/rulings.py` | An article's status, a severance amount and the effect of a court ruling come from the temporal model, the rules and the ruling's fixed formula. The model's own versions of these were where the mistakes were |
 | The answer's sentences are checked too | `answer/verify.py: ungrounded` | Every number and article the answer mentions must be in what it was given; after an opening by code, sentences that fail are left out |
 | A fixed pipeline, not an agent | `answer/pipeline.py`, `answer/agent.py` | Measured: letting the 4B model choose its own searches and tools cites an expected source in 81% of answers against 91%, and is slower (`docs/eval-results.md`) |
+| One service behind the API and the screens | `service.py` | The rules of the app (redaction, cache, one question at a time, a clear error when the model is down) are written and tested once |
+| Personal data goes out on the way in | `privacy/redact.py` | Nothing downstream can keep what it never saw. It is also noise to the search: a name and a phone number in front of a question retrieved the wrong article |
+| A cache key made of what an answer is made from | `cache.py` | Question, date, corpus fingerprint, the last day the law changed, model settings, and a fingerprint of the code: a stale answer cannot be served after a new law, a new prompt or a new check |
+| Stages as spans | `trace.py` | The same record tells a waiting user what is happening and, on request, shows a question's whole path in Phoenix. Outside the app it does nothing |
+| Legal text is never passed through Markdown | `ui/render.py` | A line starting "3." would be renumbered as a list item. Text is escaped and keeps its own line breaks |
+| A retrieval gate that needs no model | `evals/gate.py` | CI has no GPU. A snapshot of the corpus and question embeddings in git lets every push be checked for Recall@5 and for outdated text in the top 5 |
 
 ## Checks that keep it honest
 
@@ -74,6 +103,8 @@ question (+ date) ─► date: read from the question, else the date picker, els
 - Answers: the pipeline is tested end to end with a scripted model (every path: picked, repaired, rewritten, picked again, abstained, refused, status and amount by code, old and current wording, later law).
 - Evaluation: every label must match a chunk in the corpus; runs record the config, git commit, model digests and dataset fingerprint, and start from a freshly loaded model; `rescore` re-scores a run when keys change.
 - Correctness: answers are graded by reading (`grades-*.csv`), and the automatic judge is used only as far as it agrees with that reading (`pasalkini agreement`).
+- App: the service, the API and what the screens show are tested with the scripted model (cache hits, personal data never reaching the model or the log, a model server that is down, every endpoint). Redaction is tested to leave every evaluation question unchanged, so the evaluation numbers hold for the app's path. The screens were also tried by hand in a browser.
+- CI: lint, the tests, and the retrieval gate on every push (`.github/workflows/ci.yml`).
 
 ## Storage
 
@@ -85,3 +116,6 @@ question (+ date) ─► date: read from the question, else the date picker, els
 | Embedding cache | `data/processed/index/` | no |
 | Source list, manual events, review sheet | `sources/` | yes |
 | Evaluation runs | `evals/runs/<run>/` | summary, config, grading sheet, grades by reading, the judge's grades (not the answers themselves) |
+| Retrieval snapshot for CI | `evals/fixtures/retrieval.npz` | yes (1.8 MB; remade with `pasalkini fixture`) |
+| Question log | `data/logs/<day>.jsonl` | no (redacted; deleted after 30 days) |
+| Answer cache | `data/cache/answers.db` | no (keys are hashes; no question text) |

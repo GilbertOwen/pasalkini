@@ -398,21 +398,23 @@ pasalkini/
 
 **Goal:** anyone can run it with one command, with privacy and monitoring built in.
 
-- [ ] FastAPI:
+- [x] FastAPI:
   - `POST /ask` (streams with SSE)
   - `GET /provisions/{id}?as_of=YYYY-MM-DD`
   - `GET /provisions/{id}/history`
   - `GET /laws/{id}?as_of=YYYY-MM-DD` (consolidated text)
   - `POST /calc/pesangon`
   - `GET /health`
-- [ ] Gradio UI with the four screens. AI disclosure and "informasi hukum, bukan nasihat hukum" at the start of each session. Citation chips open the article text for that date.
-- [ ] PII redaction before anything is logged: NIK (16 digits), NPWP, phone numbers, email; name detection optional. Delete logs after 30 days.
-- [ ] Tracing with Arize Phoenix: one span per stage (understand, retrieve, rerank, generate, verify).
-- [ ] Caching: embeddings by content hash; answers by (question, as_of, index version, model), only when no PII was found.
-- [ ] Errors: Ollama down → clear 503; invalid JSON → one repair retry → abstain.
-- [ ] `docs/runbook-new-instrument.md`: manifest → download → parse → events → review → rebuild versions → property tests → re-index → evals → release notes.
-- [ ] Docker: install Docker Desktop (WSL2). Containerise the app and keep Ollama on the host, reached at `host.docker.internal:11434`; this is simpler than GPU passthrough on Windows.
-- [ ] CI (GitHub Actions): ruff, pytest, and a retrieval eval that fails the build if Recall@5 drops. Cache the eval query embeddings so CI doesn't need Ollama.
+
+  *(The stream carries the stages and then the whole checked answer, not words as they are written: nothing the model writes is shown before code has checked it. Added: `POST /ask/json`, `GET /laws`, `POST /calc/kompensasi-pkwt`, `GET /calc/pesangon/reasons`.)*
+- [x] Gradio UI with the four screens. AI disclosure and "informasi hukum, bukan nasihat hukum" at the start of each session. Citation chips open the article text for that date. *(The disclosure is a banner above every screen and a line under every answer.)*
+- [x] PII redaction before anything is logged: NIK (16 digits), NPWP, phone numbers, email; name detection optional. Delete logs after 30 days. *(Redaction happens before the search and the model too. Names are found only after a cue such as "nama saya".)*
+- [x] Tracing with Arize Phoenix: one span per stage (understand, retrieve, rerank, generate, verify). *(Spans for embed, understand, calculate, retrieve, select, answer and each model call, sent over OTLP when `PASALKINI_TRACE_ENDPOINT` is set. Tested against a local OTLP collector. Not yet looked at in Phoenix itself: its package pulls in 54 others, so it is left to run with `uvx` or Docker when wanted. There is no rerank stage.)*
+- [x] Caching: embeddings by content hash; answers by (question, as_of, index version, model), only when no PII was found. *(The answer key also holds the last day the law changed and a fingerprint of the code.)*
+- [x] Errors: Ollama down → clear 503; invalid JSON → one repair retry → abstain.
+- [x] `docs/runbook-new-instrument.md`: manifest → download → parse → events → review → rebuild versions → property tests → re-index → evals → release notes.
+- [ ] Docker: install Docker Desktop (WSL2). Containerise the app and keep Ollama on the host, reached at `host.docker.internal:11434`; this is simpler than GPU passthrough on Windows. *(`docker/Dockerfile` and `docker/compose.yaml` are written. Not built or run: Docker Desktop is not installed.)*
+- [x] CI (GitHub Actions): ruff, pytest, and a retrieval eval that fails the build if Recall@5 drops. Cache the eval query embeddings so CI doesn't need Ollama. *(`pasalkini gate` on `evals/fixtures/retrieval.npz`.)*
 
 **Done when:** a fresh clone plus the README steps gives a running app in under 15 minutes.
 **Skills:** API design, UI, privacy engineering, observability, Docker, CI/CD.
