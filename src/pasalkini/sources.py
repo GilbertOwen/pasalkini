@@ -1,5 +1,6 @@
 """Models and loaders for sources/manifest.yaml and sources/topics.yaml."""
 
+import re
 from datetime import date
 from enum import StrEnum
 from pathlib import Path
@@ -118,6 +119,7 @@ class Topics(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     topics: list[Topic]
+    abbreviations: dict[str, str] = {}  # 'PKWTT' → what the regulations write out
 
     @model_validator(mode="after")
     def check_unique(self) -> "Topics":
@@ -138,6 +140,16 @@ class Topics(BaseModel):
 
     def ids(self) -> set[str]:
         return {t.id for t in self.topics}
+
+    def spelled_out(self, question: str) -> str | None:
+        """The abbreviations a question uses, with their long forms: 'PKWTT = perjanjian kerja
+        waktu tidak tertentu (karyawan tetap)'. None when it uses none."""
+        used = [
+            f"{short} = {full}"
+            for short, full in self.abbreviations.items()
+            if re.search(rf"\b{re.escape(short)}\b", question)
+        ]
+        return "; ".join(used) or None
 
 
 def _read_yaml(path: Path) -> dict:

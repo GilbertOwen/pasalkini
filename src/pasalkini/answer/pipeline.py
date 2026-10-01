@@ -16,6 +16,7 @@ Where code knows the answer, the model does not write it: whether a named articl
 added after those were where the remaining mistakes came from.
 """
 
+import re
 import time
 from dataclasses import dataclass, field, replace
 from datetime import date
@@ -194,8 +195,13 @@ NOT_FOUND = (
     "yang berlaku pada tanggal itu dalam sumber PasalKini."
 )
 LATER_CAVEAT = (
-    "Ini hasil pencarian di sumber PasalKini, bukan kepastian bahwa pada tanggal itu tidak ada "
-    "aturan lain tentang hal ini."
+    "Ini hasil pencarian di sumber PasalKini, yang tidak memuat semua peraturan: mungkin ada "
+    "aturan lain tentang hal ini yang berlaku pada tanggal itu."
+)
+# A summary that starts with the label code puts in front of it: 'Bunyi lama mengatur bahwa …'.
+OWN_LABEL = re.compile(
+    r"^bunyi (?:lama|sekarang)\s*(?:mengatur|menyatakan|menyebutkan)?\s*(?:bahwa)?\s*[:,]?\s*",
+    re.IGNORECASE,
 )
 TOO_LONG = "Jawaban terpotong atau bukan JSON yang valid."
 IMPLEMENTING = ("pp-", "permenaker-")  # regulations that carry out a law
@@ -241,6 +247,7 @@ class Outcome:
     declined: str = ""  # what the model said it could not find
     dispute: bool = False  # the model read the question as about the asker's own dispute
     asked: list[dict] = field(default_factory=list, repr=False)  # the selection conversation
+    terms: str | None = None  # the question's abbreviations, spelled out for the model
     vector: np.ndarray | None = field(default=None, repr=False)  # the question, embedded
     later_replies: list[Reply] = field(default_factory=list)  # the search in later law
     later: list[Passage] = field(default_factory=list)  # law that began after the date
@@ -299,7 +306,11 @@ class Outcome:
 
 
 def selection_message(
-    question: str, understanding: Understanding, context: list[Chunk], max_chars: int
+    question: str,
+    understanding: Understanding,
+    context: list[Chunk],
+    max_chars: int,
+    terms: str | None = None,
 ) -> str:
     source = DATE_SOURCES[understanding.as_of_source]
     parts = [
@@ -307,6 +318,8 @@ def selection_message(
         f"JENIS PERTANYAAN: {understanding.intent}",
         f"PERTANYAAN: {question}",
     ]
+    if terms:
+        parts.append(f"ISTILAH: {terms}")
     blocks = []
     for chunk in context:
         # A long article is cut in its own text, never in its notes: the notes say what the
@@ -385,6 +398,12 @@ def sentence(text: str | None) -> str:
     return text if not text or text.endswith((".", "!", "?")) else text + "."
 
 
+def unlabelled(summary: str | None) -> str:
+    """'Bunyi lama mengatur bahwa lembur …' → 'Lembur …': code writes the label."""
+    text = OWN_LABEL.sub("", (summary or "").strip())
+    return sentence(text[:1].upper() + text[1:])
+
+
 def answer_message(outcome: Outcome, blocks: list[str], task: str | None) -> str:
     u = outcome.understanding
     source = DATE_SOURCES[u.as_of_source]
@@ -392,6 +411,8 @@ def answer_message(outcome: Outcome, blocks: list[str], task: str | None) -> str
         f"TANGGAL: {format_date(u.as_of)} ({source})",
         f"PERTANYAAN: {outcome.question}",
     ]
+    if outcome.terms:
+        parts.append(f"ISTILAH: {outcome.terms}")
     if outcome.calculation is not None:
         parts.append("HASIL HITUNGAN (oleh program):\n" + outcome.calculation.text())
     if outcome.timeline:
@@ -534,6 +555,7 @@ class Pipeline:
                 question, self.config.query_instruction, self.config.embed_num_ctx
             )
         outcome.vector = query_vector
+        outcome.terms = self.topics.spelled_out(question) if self.topics else None
         sources = outcome.calculation.sources if outcome.calculation else []
         # A question about severance gets the articles that hold the severance tables: the
         # search often ranks the articles on dismissal reasons above them.
@@ -559,7 +581,7 @@ class Pipeline:
         """The model picks quotes; code checks them. One repair with the problems listed."""
         u = outcome.understanding
         user = selection_message(
-            outcome.question, u, outcome.context, self.config.max_chars_per_chunk
+            outcome.question, u, outcome.context, self.config.max_chars_per_chunk, outcome.terms
         )
         messages = [
             {"role": "system", "content": SELECT_PROMPT},
@@ -705,7 +727,9 @@ class Pipeline:
         context = list(found.values())[:LATER_POOL]
         if not context:
             return
-        user = selection_message(outcome.question, u, context, self.config.max_chars_per_chunk)
+        user = selection_message(
+            outcome.question, u, context, self.config.max_chars_per_chunk, outcome.terms
+        )
         messages = [
             {"role": "system", "content": LATER_PROMPT},
             {"role": "user", "content": user},
@@ -813,8 +837,8 @@ class Pipeline:
             return True
         outcome.dispute = both.perselisihan
         outcome.said = (
-            f"Bunyi lama: {sentence(both.lama)} Bunyi yang berlaku pada "
-            f"{format_date(u.as_of)}: {sentence(both.sekarang)}"
+            f"Bunyi lama: {unlabelled(both.lama)} Bunyi yang berlaku pada "
+            f"{format_date(u.as_of)}: {unlabelled(both.sekarang)}"
         )
         return True
 

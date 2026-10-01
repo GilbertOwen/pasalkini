@@ -22,6 +22,7 @@ from pasalkini.answer.understand import Classification
 from pasalkini.answer.verify import Answer, Citation, Comparison, Selection, check_selection
 from pasalkini.pipelines import CONFIGS
 from pasalkini.retrieve.dense import DenseIndex
+from pasalkini.sources import Topics
 from pasalkini.temporal.corpus import DatedChunk
 
 TODAY = date(2026, 10, 1)
@@ -150,6 +151,17 @@ def test_the_answer_is_written_from_the_selected_passages_alone():
     assert "KUTIPAN:\n\n1. UU 13/2003 Pasal 78" in given
 
 
+def test_abbreviations_in_a_question_are_spelled_out_for_the_model():
+    topics = Topics(topics=[], abbreviations={"PKWTT": "perjanjian kerja waktu tidak tertentu"})
+    chat = ScriptedChat(selections=[PICKS_OLD])
+    pipeline = Pipeline(CONFIG, CHUNKS, INDEX, None, topics, chat=chat, today=TODAY)
+    pipeline.run("Berapa jam lembur maksimal untuk PKWTT?", date(2019, 6, 1), QUERY)
+    spelled = "ISTILAH: PKWTT = perjanjian kerja waktu tidak tertentu"
+    assert spelled in chat.named("Selection")[0][-1]["content"]
+    assert spelled in chat.named("Answer")[0][-1]["content"]
+    assert topics.spelled_out("Berapa lama kontrak PKWT?") is None  # another abbreviation
+
+
 def test_a_misquote_is_repaired_once():
     wrong = picks((OLD.source_id, "paling banyak 5 (lima) jam sehari"))  # the text says 3
     chat = ScriptedChat(selections=[wrong, PICKS_OLD])
@@ -190,7 +202,7 @@ def test_a_rule_that_began_after_the_date_is_reported_as_not_yet_in_force():
     )
     shown = outcome.display()
     assert 'Aturan yang berlaku kemudian:\n- PP 35/2021 Pasal 16 [pp-35-2021/pasal-16]: "' in shown
-    assert "bukan kepastian bahwa pada tanggal itu tidak ada aturan lain" in shown
+    assert "sumber PasalKini, yang tidak memuat semua peraturan" in shown
     assert "Sumber:" not in shown and outcome.confidence == "sedang"
 
 
@@ -339,6 +351,16 @@ def test_a_question_about_change_is_answered_as_the_old_wording_and_the_current_
     # Code opens with the article's status and labels the two summaries.
     assert outcome.lead == OPENING and outcome.answer == f"{OPENING} {COMPARED}"
     assert not chat.named("Answer")
+
+
+def test_a_summary_that_repeats_its_label_is_shown_without_it():
+    labelled = Comparison(
+        lama="Bunyi lama mengatur bahwa lembur paling banyak 3 jam sehari",
+        sekarang="bunyi sekarang: lembur paling lama 4 jam sehari.",
+    )
+    chat = ScriptedChat(intent="riwayat", selections=[PICKS_NEW], comparisons=[labelled])
+    outcome = run(chat, "Apa yang berubah soal lembur setelah Cipta Kerja?", TODAY)
+    assert outcome.answer == COMPARED
 
 
 def test_each_summary_may_only_use_its_own_wording_and_neither_may_state_dates():

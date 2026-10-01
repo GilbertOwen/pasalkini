@@ -47,3 +47,17 @@ topics:
     name: Pekerja platform digital
     description: Platform and app-based workers. In scope only if the new labor law regulates them.
     synonyms: [ojol, ojek online, driver online, kurir online, mitra aplikasi]
+
+# Abbreviations people use; the regulations spell these out. A question that uses one is shown
+# to the model with its long form, so that 'PKWTT' is not read as 'PKWT'.
+abbreviations:
+  PKWT: perjanjian kerja waktu tertentu (kontrak)
+  PKWTT: perjanjian kerja waktu tidak tertentu (karyawan tetap)
+  PHK: pemutusan hubungan kerja
+  UPMK: uang penghargaan masa kerja
+  UPH: uang penggantian hak
+  JKP: jaminan kehilangan pekerjaan
+  PKB: perjanjian kerja bersama
+  UMP: upah minimum provinsi
+  THR: tunjangan hari raya keagamaan
+  TKA: tenaga kerja asing

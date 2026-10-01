@@ -95,6 +95,8 @@ class Agent(Pipeline):
         as_of, source = decide_date(question, date_hint, self.today)
         u = Understanding("jelaskan", as_of, source, named_provisions(question), "agent")
         outcome = Outcome(question, u)
+        outcome.vector = query_vector
+        outcome.terms = self.topics.spelled_out(question) if self.topics else None
         messages = [
             {"role": "system", "content": AGENT_PROMPT},
             {
