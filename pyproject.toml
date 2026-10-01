@@ -38,6 +38,7 @@ build-backend = "uv_build"
 dev = [
     "httpx2>=2.13.1",
     "hypothesis>=6.168.3",
+    "opentelemetry-exporter-otlp-proto-http>=1.45.0",
     "opentelemetry-sdk>=1.45.0",
     "pytest>=9.1.1",
     "ruff>=0.16.9",

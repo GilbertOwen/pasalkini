@@ -302,6 +302,25 @@ def ask_pipeline(args: argparse.Namespace, config, chunks, index, lexical) -> No
     print(", ".join(f"{step} {seconds:.1f} s" for step, seconds in outcome.seconds.items()))
 
 
+def cmd_fixture(_: argparse.Namespace) -> None:
+    from pasalkini.evals.gate import FIXTURE_PATH, build_fixture
+
+    meta = build_fixture()
+    size = FIXTURE_PATH.stat().st_size / 1e6
+    print(f"Wrote {FIXTURE_PATH.relative_to(FIXTURE_PATH.parents[2])} ({size:.1f} MB)")
+    print(f"Baseline: {meta['baseline']}")
+    print("Commit it: the retrieval gate in CI compares against this file.")
+
+
+def cmd_gate(_: argparse.Namespace) -> None:
+    from pasalkini.evals.gate import check
+
+    passed, lines = check()
+    print("\n".join(lines))
+    if not passed:
+        raise SystemExit(1)
+
+
 def cmd_setup(args: argparse.Namespace) -> None:
     """Everything between a fresh clone and a running app: download, parse, build, index."""
     print("1/4 Download: the official PDFs (skipped where already downloaded)")
@@ -390,6 +409,8 @@ def main() -> None:
     ask.add_argument("--date", help="the date that decides which law applies (YYYY-MM-DD)")
     ask.add_argument("--config", default="pasalkini", choices=sorted(CONFIGS))
 
+    sub.add_parser("gate", help="the CI check: retrieval on the committed snapshot (no Ollama)")
+    sub.add_parser("fixture", help="remake the snapshot the gate compares against")
     sub.add_parser("setup", help="download, parse, build and index: from a fresh clone to ready")
     serve = sub.add_parser("serve", help="run the app: the API and the four screens")
     # 127.0.0.1: reachable from this machine only. The app has no login and no rate limit.
@@ -398,6 +419,8 @@ def main() -> None:
 
     args = parser.parse_args()
     handlers = {
+        "gate": cmd_gate,
+        "fixture": cmd_fixture,
         "setup": cmd_setup,
         "serve": cmd_serve,
         "download": cmd_download,

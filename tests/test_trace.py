@@ -138,3 +138,51 @@ def test_a_trace_is_exported_as_one_tree_with_its_own_times():
     assert sent["retrieve"].status.status_code.name == "ERROR"
     assert ask.status.status_code.name == "OK"
     exporter.shutdown()
+
+
+def test_a_trace_reaches_a_collector_over_otlp_http():
+    """The path Phoenix uses: OTLP over HTTP, protobuf, at /v1/traces."""
+    pytest.importorskip("opentelemetry.exporter.otlp.proto.http")
+    import gzip
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+
+    from opentelemetry.proto.collector.trace.v1.trace_service_pb2 import ExportTraceServiceRequest
+
+    received = []
+
+    class Collector(BaseHTTPRequestHandler):
+        def do_POST(self):
+            body = self.rfile.read(int(self.headers["Content-Length"]))
+            if self.headers.get("Content-Encoding") == "gzip":
+                body = gzip.decompress(body)
+            received.append((self.path, self.headers["Content-Type"], body))
+            self.send_response(200)
+            self.end_headers()
+
+        def log_message(self, *args):
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Collector)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        exporter = Exporter(f"http://127.0.0.1:{server.server_port}/v1/traces")
+        with tracing("ask", input="Berapa jam lembur maksimal?") as trace:
+            with span("retrieve", RETRIEVER):
+                note(documents=[("uu-13-2003/pasal-78", "UU 13/2003 Pasal 78")])
+        exporter.export(trace)
+        exporter.shutdown()  # sends what is waiting
+    finally:
+        server.shutdown()
+    ((path, content_type, body),) = received
+    assert path == "/v1/traces" and content_type == "application/x-protobuf"
+    request = ExportTraceServiceRequest.FromString(body)
+    (resource_spans,) = request.resource_spans
+    resource = {a.key: a.value.string_value for a in resource_spans.resource.attributes}
+    assert resource["openinference.project.name"] == "pasalkini"
+    spans = {s.name: s for scope in resource_spans.scope_spans for s in scope.spans}
+    assert set(spans) == {"ask", "retrieve"}
+    assert spans["retrieve"].parent_span_id == spans["ask"].span_id
+    kinds = {a.key: a.value.string_value for a in spans["retrieve"].attributes}
+    assert kinds["openinference.span.kind"] == "RETRIEVER"
+    assert kinds["retrieval.documents.0.document.id"] == "uu-13-2003/pasal-78"

@@ -947,6 +947,7 @@ tracing = [
 dev = [
     { name = "httpx2" },
     { name = "hypothesis" },
+    { name = "opentelemetry-exporter-otlp-proto-http" },
     { name = "opentelemetry-sdk" },
     { name = "pytest" },
     { name = "ruff" },
@@ -974,6 +975,7 @@ provides-extras = ["tracing"]
 dev = [
     { name = "httpx2", specifier = ">=2.13.1" },
     { name = "hypothesis", specifier = ">=6.168.3" },
+    { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.45.0" },
     { name = "opentelemetry-sdk", specifier = ">=1.45.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "ruff", specifier = ">=0.16.9" },
