@@ -65,4 +65,4 @@ def write_spot_check(n: int = 30, seed: int = 20260930) -> None:
         excerpt = text if len(text) <= 900 else text[:900] + " …"
         out += [f"## {k}. {title}", "", f"- [ ] matches `{pdf}` page {page}", "", "```text"]
         out += [excerpt, "```", ""]
-    SPOT_CHECK_PATH.write_text("\n".join(out), encoding="utf-8")
+    SPOT_CHECK_PATH.write_text("\n".join(out), encoding="utf-8", newline="\n")

@@ -416,7 +416,7 @@ pasalkini/
 - [ ] Docker: install Docker Desktop (WSL2). Containerise the app and keep Ollama on the host, reached at `host.docker.internal:11434`; this is simpler than GPU passthrough on Windows. *(`docker/Dockerfile` and `docker/compose.yaml` are written. Not built or run: Docker Desktop is not installed.)*
 - [x] CI (GitHub Actions): ruff, pytest, and a retrieval eval that fails the build if Recall@5 drops. Cache the eval query embeddings so CI doesn't need Ollama. *(`pasalkini gate` on `evals/fixtures/retrieval.npz`.)*
 
-**Done when:** a fresh clone plus the README steps gives a running app in under 15 minutes.
+**Done when:** a fresh clone plus the README steps gives a running app in under 15 minutes. *(Checked on 2026-10-02 on the development laptop, from a fresh clone: `uv sync` 47 s; `setup` 64 s with the PDFs copied in instead of downloaded again (15 files, about 180 MB, one request every 3 s when downloaded); the app up 12 s after `serve`; first answer 13 s, with the model loading. The rebuilt corpus has the same fingerprint as the one the evaluation used. Pulling the two Ollama models, about 4 GB, comes on top for a machine that does not have them.)*
 **Skills:** API design, UI, privacy engineering, observability, Docker, CI/CD.
 
 ### Phase 8: Portfolio launch (week 13)

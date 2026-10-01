@@ -67,7 +67,8 @@ def load_lock() -> dict:
 
 def save_lock(lock: dict) -> None:
     ordered = dict(sorted(lock.items()))
-    LOCK_PATH.write_text(json.dumps(ordered, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    text = json.dumps(ordered, indent=2, ensure_ascii=False) + "\n"
+    LOCK_PATH.write_text(text, encoding="utf-8", newline="\n")
 
 
 @dataclass

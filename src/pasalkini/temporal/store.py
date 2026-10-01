@@ -53,7 +53,7 @@ def load_reviews() -> dict[str, dict]:
 
 def write_reviews(events: list[Event], reviews: dict[str, dict]) -> None:
     with REVIEW_PATH.open("w", encoding="utf-8-sig", newline="") as f:
-        writer = csv.DictWriter(f, fieldnames=REVIEW_FIELDS)
+        writer = csv.DictWriter(f, fieldnames=REVIEW_FIELDS, lineterminator="\n")
         writer.writeheader()
         for e in sorted(events, key=lambda e: (e.effective_on, e.source_id, e.target)):
             old = reviews.get(e.id, {})
@@ -166,7 +166,7 @@ def write_report(events: list[Event], versions: list[Version], warnings: list[st
         "",
     ]
     lines += [f"- {w}" for w in warnings] or ["None."]
-    REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    REPORT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
 
 
 def build() -> tuple[list[Event], list[Version], list[str]]:

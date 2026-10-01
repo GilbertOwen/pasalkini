@@ -141,7 +141,8 @@ def write_report(docs: list[ParsedDocument]) -> None:
             if len(doc.warnings) > 50:
                 out.append(f"- … and {len(doc.warnings) - 50} more")
             out.append("")
-    REPORT_PATH.write_text("\n".join(out) + "\n", encoding="utf-8")
+    # LF on every platform: the report is in git, and a rebuild should not show it as changed.
+    REPORT_PATH.write_text("\n".join(out) + "\n", encoding="utf-8", newline="\n")
 
 
 def run(only: list[str] | None = None) -> list[ParsedDocument]:
