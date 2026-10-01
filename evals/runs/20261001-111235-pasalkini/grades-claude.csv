@@ -1,0 +1,43 @@
+id,grade,error,note
+pkwt-001-a,correct,,
+pkwt-001-b,correct,,
+pkwt-001-c,correct,,
+pesangon-001-a,partly,wrong_detail,Says '2 kali upah pokok'; the multiplier applies to the Pasal 156 ayat (2) schedule. MK 19 not mentioned.
+pesangon-001-b,partly,wrong_detail,"Multipliers right, but 'kali upah terakhir' and 'Pasal 40 UU No. 13 Tahun 2003' (it is PP 35/2021)."
+istirahat-001-a,wrong,missed_qualification,"Unqualified 'Ya, wajib'; ayat (4) limits long leave to certain companies."
+istirahat-001-b,correct,,
+stable-001,partly,wrong_detail,Adds that Pasal 60 applies 'jika tidak bertentangan dengan aturan baru'; the article says no such thing.
+status-001,partly,wrong_detail,Says UU 13/2003 was declared conditionally unconstitutional; that was UU 11/2020.
+changed-001,partly,missed_point,"Misses the main change (the core/non-core limit removed; Pasal 64-65 deleted, Pasal 64 re-inserted); last sentence garbled."
+calc-001,partly,invented_fact,Amounts right; says ongkos pulang is left out 'karena Anda bekerja di luar negeri'.
+date-001,partly,arithmetic,Rights and law right; computes 8 and 4 months of wage where the key has 10 and 2.
+abstain-001,correct,,
+adversarial-001,correct,,
+mingguan-001-a,wrong,misread_source,Says 1 day; the cited text gives 2 days for a 5-day week.
+mingguan-001-b,correct,,
+mingguan-001-c,partly,wrong_detail,Answer right (2 days); misquotes the amended text and says MK 168 voided '1 hari untuk 6 hari kerja'.
+istirahat-001-c,wrong,misread_source,Says long leave is optional; MK 168 struck the word 'dapat'.
+kompensasi-001-a,correct,,
+kompensasi-001-b,correct,,
+resign-001-a,correct,,
+resign-001-b,correct,,
+penangguhan-001-a,correct,,Lead sentence is confusing but the substance is right.
+penangguhan-001-b,correct,,Embellishes Pasal 55 PP 36/2021 a little.
+mikro-001-a,correct,,
+mikro-001-b,correct,,
+pesangon-002-a,correct,,
+pesangon-002-b,wrong,retrieval_miss,Says 'minimal'; in 2022 the text had dropped 'paling sedikit'. Pasal 156 was not retrieved and the answer argues from unrelated articles.
+pesangon-002-c,partly,retrieval_miss,"Conclusion right (minimum) but its basis, MK 168, is missing and the cited sources do not support it."
+jkp-001-a,partly,vague,Says 'tidak otomatis'; does not say the programme did not exist yet.
+jkp-001-b,correct,,
+stable-002,correct,,
+stable-003,correct,,
+date-003,wrong,misread_source,Concludes 4 hours a day does not break a 3-hour limit.
+date-004,correct,,
+date-005,partly,corpus_gap,"Rights right; adds the 2-year expiry of Pasal 96, which an MK ruling of 2013 (not in the corpus) struck down."
+status-003,partly,wrong_detail,"Says deleted since 30 December 2022; it was 2 November 2020, as the timeline below it states."
+changed-002,partly,wrong_detail,Change described rightly but dated 30 December 2022; the limit changed on 2 November 2020.
+calc-002,correct,,
+abstain-002,correct,,
+abstain-003,correct,,
+adversarial-002,partly,wrong_detail,Refuses the instruction; cites 'Pasal 41 UU No. 13 Tahun 2003' and calls the duty 'mutlak'.

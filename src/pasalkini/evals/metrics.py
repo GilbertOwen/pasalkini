@@ -88,11 +88,18 @@ class ItemResult(BaseModel):
     intent: str | None = None
     as_of_source: str | None = None  # pertanyaan | pemilih_tanggal | hari_ini
     abstained: bool | None = None
-    first_pass_ok: bool | None = None  # the first answer passed the citation checks
-    retried: bool | None = None
-    dropped_citations: list[str] = []  # cited by the final answer but failed the checks
-    first_problems: list[str] = []  # what the citation checks said about the first answer
-    drafts_raw: list[str] = []  # each answer attempt as the model wrote it
+    first_pass_ok: bool | None = None  # the first selection of quotes passed every check
+    retried: bool | None = None  # the selection was repaired
+    dropped_citations: list[str] = []  # selected in the end but failed the checks
+    first_problems: list[str] = []  # what the checks said about the first selection
+    drafts_raw: list[str] = []  # every reply of the selection and answer calls, in order
+    # From Phase 6 the answer is a second call, from the verified passages alone.
+    lead: str | None = None  # the opening sentence written by code
+    material: str | None = None  # what the answer call was given
+    grounded_first: bool | None = None  # the first answer mentioned nothing it was not given
+    rewritten: bool | None = None
+    answer_problems: list[str] = []  # what the first answer mentioned that it was not given
+    ungrounded: list[str] = []  # ... and what the shown answer still does
     agent_steps: list[str] | None = None  # agent only: the tools it used, in order
     calculation: str | None = None
 
@@ -229,6 +236,8 @@ PIPELINE_HEADER = [
     "Citations pass first try",
     "Repaired",
     "Citations dropped",
+    "Answer grounded first try",
+    "Answer shown ungrounded",
 ]
 
 
@@ -237,6 +246,7 @@ def pipeline_table(results: list[ItemResult]) -> list[str]:
     rows = []
     for label, group in groups(results):
         answered = [r for r in group if r.first_pass_ok is not None]
+        written = [r for r in group if r.grounded_first is not None]
         rows.append(
             [
                 label,
@@ -246,6 +256,8 @@ def pipeline_table(results: list[ItemResult]) -> list[str]:
                 percent([r.first_pass_ok for r in answered]),
                 percent([r.retried for r in answered]),
                 percent([bool(r.dropped_citations) for r in answered]),
+                percent([r.grounded_first for r in written]),
+                percent([bool(r.ungrounded) for r in written]),
             ]
         )
     return table(PIPELINE_HEADER, rows)

@@ -162,18 +162,24 @@ def evaluate_with_pipeline(
     result.retrieval_mode = "history" if u.history else "as_of"
     result.answer = outcome.display()
     result.citations_raw = [c.source_id for c in outcome.citations]
-    result.json_ok = outcome.json_ok if outcome.drafts else True  # a refusal needs no answer call
+    result.json_ok = outcome.json_ok if outcome.replies else True  # a refusal makes no call
     result.generation_s = outcome.seconds.get("total")
-    result.prompt_tokens = sum(d.prompt_tokens for d in outcome.drafts)
-    result.output_tokens = sum(d.output_tokens for d in outcome.drafts)
+    result.prompt_tokens = sum(reply.prompt_tokens for reply in outcome.replies)
+    result.output_tokens = sum(reply.output_tokens for reply in outcome.replies)
     result.intent = u.intent
     result.as_of_source = u.as_of_source
     result.abstained = outcome.abstained
-    result.first_pass_ok = not outcome.first_problems if outcome.drafts else None
-    result.retried = outcome.retried if outcome.drafts else None
+    result.first_pass_ok = not outcome.first_problems if outcome.selections else None
+    result.retried = outcome.retried if outcome.selections else None
     result.dropped_citations = outcome.dropped
     result.first_problems = outcome.first_problems
-    result.drafts_raw = [draft.raw for draft in outcome.drafts]
+    result.drafts_raw = [reply.raw for reply in outcome.replies]
+    result.lead = outcome.lead
+    result.material = outcome.material or None
+    result.grounded_first = not outcome.answer_problems if outcome.drafts else None
+    result.rewritten = outcome.rewritten if outcome.drafts else None
+    result.answer_problems = outcome.answer_problems
+    result.ungrounded = outcome.ungrounded
     if isinstance(pipeline, Agent):
         result.agent_steps = outcome.steps
     result.calculation = outcome.calculation.text() if outcome.calculation else None
@@ -252,9 +258,14 @@ def write_summary(run_dir: Path, meta: dict, results: list[ItemResult]) -> None:
             "articles the question names before the search results; *Median answer s* is the "
             "whole pipeline. Citations are counted after verification.",
             "- *Abstained correctly*: refused or abstained exactly when the key says it should.",
-            "- *Citations pass first try*: the first answer passed every citation check; "
-            "*Repaired*: a second answer was asked for; *Citations dropped*: the final answer "
-            "still had citations that failed and were not shown.",
+            "- *Citations pass first try*: every quote the model first selected was found in "
+            "the source it named, in a version that applied on the date; *Repaired*: a second "
+            "selection was asked for; *Citations dropped*: quotes of the final selection that "
+            "still failed and were not used.",
+            "- *Answer grounded first try*: the first answer mentioned no number or article "
+            "that it was not given (and, for history questions, no date); otherwise it was "
+            "rewritten once. *Answer shown ungrounded*: the answer shown still does, and says "
+            "so in a note.",
         ]
     lines.append("")
     (run_dir / "summary.md").write_text("\n".join(lines), encoding="utf-8")

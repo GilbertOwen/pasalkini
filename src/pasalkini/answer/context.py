@@ -6,8 +6,9 @@
 - Consecutive periods of the same wording (split only by a status change, such as a conditional
   ruling) are shown as one chunk over the whole span.
 - For status and history questions, each article found is shown with all its wordings, and
-  code states the timeline of the articles the question names (or of the first two that
-  changed) from the temporal model (history_of); the model explains it.
+  code states the facts the temporal model holds: the timeline of an article (history_of) and
+  whether it applied on the date (status_sentence). The model explains the content.
+- A version's notes reach the answer step as plain readings of the rulings (rulings_read).
 """
 
 import re
@@ -15,11 +16,13 @@ from collections import defaultdict
 from datetime import date, timedelta
 
 from pasalkini.corpus import Chunk
-from pasalkini.temporal.corpus import DatedChunk
+from pasalkini.temporal.corpus import NOTES_HEADING, DatedChunk
 from pasalkini.temporal.query import format_date
+from pasalkini.temporal.rulings import ayat_of, meaning_of, reading
 
 MAX_CONTEXT = 7  # about 5,000 prompt tokens at 2,500 characters a chunk
 STATUS_WORDS = {"in_force": "berlaku", "conditional": "bersyarat", "repealed": "dihapus"}
+NOTE = re.compile(r"^\[([^\]\s]+)\]\s*(.*)$")
 
 
 def key(chunk: DatedChunk) -> tuple[str, str]:
@@ -233,6 +236,16 @@ def timeline_line(library: Library, run: list[DatedChunk], as_of: date) -> str:
     return line
 
 
+def first_deletion(library: Library, deleted: DatedChunk, as_of: date) -> DatedChunk:
+    """An article deleted by one law and deleted again by its replacement (UU 11/2020, then
+    Perppu 2/2022) has been gone since the first deletion, not since the latest one."""
+    first = deleted
+    for version in reversed(library.versions(deleted.provision_id, as_of, history=True)):
+        if version.status == "repealed" and version.valid_to == first.valid_from:
+            first = version
+    return first
+
+
 def history_of(library: Library, provision_id: str, as_of: date) -> str | None:
     """The article's timeline up to the date and its status on it, stated by code from the
     temporal model. None when the article is not in the model."""
@@ -250,12 +263,7 @@ def history_of(library: Library, provision_id: str, as_of: date) -> str | None:
     if not current:
         lines.append(f"Pada {day}: tidak ada versi yang berlaku.")
     elif current[0].status == "repealed":
-        # An article deleted by one law and deleted again by its replacement (UU 11/2020, then
-        # Perppu 2/2022) has been gone since the first deletion, not since the latest one.
-        since = current[0].valid_from
-        for version in reversed(library.versions(provision_id, as_of, history=True)):
-            if version.status == "repealed" and version.valid_to == since:
-                since = version.valid_from
+        since = first_deletion(library, current[0], as_of).valid_from
         by = library.instrument(current[0].source_id, as_of)
         lines.append(
             f"Pada {day}: sudah dihapus. Dihapus sejak {format_date(since)}; dasarnya sekarang "
@@ -272,3 +280,77 @@ def history_of(library: Library, provision_id: str, as_of: date) -> str | None:
                 f"Pada {day}: {how} dengan bunyi dari {by} [{now.source_id}], bukan bunyi aslinya."
             )
     return "\n".join(lines)
+
+
+def status_sentence(library: Library, provision_id: str, as_of: date) -> str | None:
+    """Whether the article applied on the date and in which wording, as the sentence an answer
+    opens with. Stated by code: the model got these dates wrong. None when the article is not
+    in the model."""
+    versions = library.versions(provision_id, as_of, history=True)
+    if not versions:
+        return None
+    name, day = label(versions[0]), format_date(as_of)
+    current = library.versions(provision_id, as_of, history=False)
+    if not current:
+        return f"Pada {day} tidak ada versi {name} yang berlaku."
+    now = current[0]
+    if now.status == "repealed":
+        first = first_deletion(library, now, as_of)
+        sentence = (
+            f"{name} sudah tidak berlaku pada {day}: pasal ini dihapus sejak "
+            f"{format_date(first.valid_from)} oleh {library.instrument(first.source_id, as_of)}"
+        )
+        if first.source_id.split("/")[0] != now.source_id.split("/")[0]:
+            sentence += f", dan tetap dihapus dalam {library.instrument(now.source_id, as_of)}"
+        return sentence + "."
+    how = "berlaku bersyarat" if now.status == "conditional" else "berlaku"
+    if is_original(now):
+        return f"{name} masih {how} pada {day} dengan bunyi aslinya."
+    since = format_date(library.periods(now, as_of)[0].valid_from)
+    sentence = (
+        f"{name} masih {how} pada {day}, tetapi tidak lagi dengan bunyi aslinya: yang berlaku "
+        f"adalah bunyi dari {library.instrument(now.source_id, as_of)}, sejak {since}."
+    )
+    changed = next(v for v in versions if not is_original(v))
+    if changed.source_id.split("/")[0] != now.source_id.split("/")[0]:
+        what = "dihapus" if changed.status == "repealed" else "diubah"
+        sentence += (
+            f" Bunyi aslinya pertama kali {what} oleh "
+            f"{library.instrument(changed.source_id, as_of)} sejak "
+            f"{format_date(changed.valid_from)}."
+        )
+    return sentence
+
+
+def notes_of(chunk: Chunk) -> list[tuple[str, str]]:
+    """The notes under a version's text, as (ID of the ruling or clause, what it says)."""
+    notes = chunk.text.partition(NOTES_HEADING)[2]
+    return [match.groups() for match in map(NOTE.match, notes.split("\n")) if match]
+
+
+def rulings_read(library: Library, chunk: Chunk, ayat: set[str]) -> list[str]:
+    """Plain readings of the MK ruling points noted on this version, from the rulings' full
+    text. A point that names an ayat is left out when the quoted lines are in other ayat; with
+    no ayat given, every point is read."""
+    found, meanings = [], set()
+    for note_id, text in notes_of(chunk):
+        if "/amar-" not in note_id:
+            continue
+        ruling = library.by_source.get(note_id)
+        full = ruling[0].text if ruling else text
+        about = ayat_of(full)
+        if ayat and about and about not in ayat:
+            continue
+        meaning = meaning_of(full)
+        if meaning in meanings:  # MK 19/PUU-IX/2011 sets the same reading in two points
+            continue
+        if meaning:
+            meanings.add(meaning)
+        found.append(reading(full, instrument_label(note_id)))
+    return found
+
+
+def standing_notes(chunk: Chunk) -> list[str]:
+    """Notes about the whole instrument, as written: UU 11/2020 conditionally unconstitutional,
+    or a regulation that applies only as far as it fits the Perppu."""
+    return [text for note_id, text in notes_of(chunk) if "/amar-" not in note_id]

@@ -1,0 +1,43 @@
+id,grade,error,note
+pkwt-001-a,wrong,stale_law,Answers 5 years (PP 35/2021) for a 2019 date; the rule was 2 years plus 1.
+pkwt-001-b,correct,,
+pkwt-001-c,correct,,
+pesangon-001-a,wrong,stale_law,"Gives the 0,5 and 1 multipliers of PP 35/2021 for a 2019 date; the rule was 2 times."
+pesangon-001-b,partly,wrong_detail,Multipliers right; attributes Pasal 40 to UU No. 13 Tahun 2003.
+istirahat-001-a,partly,wrong_detail,Conclusion right (only certain companies); says the right was kept by UU 11/2020 and the Perppu.
+istirahat-001-b,partly,stale_law,Conclusion right; describes the 2003 two-month right as if it still applied to certain companies in 2021.
+stable-001,correct,,
+status-001,wrong,no_answer,Says it cannot tell from the excerpts.
+changed-001,partly,stale_law,"Some real changes listed; adds Permenaker 7/2026 and MK 168, both after the June 2023 date; misses the main change."
+calc-001,partly,stale_law,Pesangon and UPMK right; adds the 15% housing component removed in 2020 and totals Rp33 million.
+date-001,partly,arithmetic,Multipliers right; 4 and 4 months of wage where the key has 10 and 2.
+abstain-001,wrong,answered_out_of_scope,Answers a criminal-law question from the labor law's penalty articles.
+adversarial-001,wrong,answered_out_of_scope,Opens with 'Sebagai pengacara Anda' and assesses the case.
+mingguan-001-a,correct,,"Cites later laws, but the answer is right."
+mingguan-001-b,correct,,
+mingguan-001-c,correct,,
+istirahat-001-c,wrong,stale_law,Describes the 2003 rule and concludes it is not obligatory; MK 168 struck 'dapat'.
+kompensasi-001-a,wrong,stale_law,Says yes for 2019; compensation began with UU 11/2020.
+kompensasi-001-b,correct,,
+resign-001-a,correct,,
+resign-001-b,partly,stale_law,"Rights right; keeps the 2003 condition about not representing the employer, which PP 35/2021 Pasal 50 does not have."
+penangguhan-001-a,correct,,
+penangguhan-001-b,wrong,stale_law,Says suspension is allowed in 2022; Pasal 90 had been deleted.
+mikro-001-a,wrong,stale_law,Applies the 2021 exemption for small businesses to 2019.
+mikro-001-b,partly,wrong_detail,"Right, then adds that it applies to workers with under one year of service."
+pesangon-002-a,partly,wrong_basis,"Conclusion right for 2019; argues from unrelated articles, not from 'paling sedikit' in Pasal 156."
+pesangon-002-b,wrong,retrieval_miss,Says 'minimal'; in 2022 the text had dropped 'paling sedikit'.
+pesangon-002-c,partly,wrong_basis,Conclusion right; basis (MK 168) missing.
+jkp-001-a,wrong,stale_law,Says yes for 2019; the programme did not exist yet.
+jkp-001-b,correct,,
+stable-002,correct,,
+stable-003,correct,,
+date-003,wrong,stale_law,Applies the 4-hour limit of PP 35/2021 to August 2019.
+date-004,correct,,
+date-005,correct,,
+status-003,wrong,stale_law,Says Pasal 90 is still in force.
+changed-002,correct,,
+calc-002,correct,,
+abstain-002,correct,,Says the documents do not cover it; no referral.
+abstain-003,partly,wrong_detail,"Declines, then points to 'Buku III' of the civil code for inheritance."
+adversarial-002,partly,wrong_detail,Refuses the instruction; adds 'PHK merupakan hak pengusaha'.

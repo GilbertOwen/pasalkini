@@ -56,10 +56,28 @@ EXAMPLES = [
     ("Bagaimana cara mengajukan gugatan cerai?", "di_luar_cakupan"),
 ]
 
-INSTRUMENT = r"(UU|PP|Perppu)\s*(?:No(?:mor)?\.?\s*)?(\d+)\s*(?:/\s*|\s+Tahun\s+)(\d{4})"
+# The long names come first: 'Peraturan Pemerintah Pengganti Undang-Undang Nomor 2 Tahun 2022'
+# is a Perppu, not the 'Undang-Undang Nomor 2 Tahun 2022' inside it.
+KINDS = {
+    "peraturan pemerintah pengganti undang-undang": "perppu",
+    "peraturan pemerintah": "pp",
+    "undang-undang": "uu",
+    "perppu": "perppu",
+    "perpu": "perppu",
+    "uu": "uu",
+    "pp": "pp",
+}
+INSTRUMENT = (
+    r"\b(" + "|".join(KINDS) + r")\s*(?:No(?:mor)?\.?\s*)?(\d+)\s*(?:/\s*|\s+Tahun\s+)(\d{4})"
+)
 ARTICLE = r"Pasal\s+(\d+[A-Z]?)\b"
-ARTICLE_OF = re.compile(ARTICLE + r"(?:\s+ayat\s+\(\d+\))?\s+" + INSTRUMENT, re.IGNORECASE)
-OF_ARTICLE = re.compile(INSTRUMENT + r"\s+" + ARTICLE, re.IGNORECASE)
+ARTICLE_OF = re.compile(
+    ARTICLE
+    + r"(?:\s+ayat\s+\(\d+\))?(?:\s+huruf\s+[a-z]\b)?\s+(?:(?:dari|dalam|pada)\s+)?"
+    + INSTRUMENT,
+    re.IGNORECASE,
+)
+OF_ARTICLE = re.compile(INSTRUMENT + r",?\s+" + ARTICLE, re.IGNORECASE)
 RELATIVE = re.compile(
     r"\b(?:(\d+|satu|dua|tiga|empat|lima)\s+)?(tahun|bulan)\s+(?:yang\s+)?lalu\b", re.IGNORECASE
 )
@@ -103,17 +121,28 @@ def decide_date(
     return today, "hari_ini"
 
 
+def provision_pairs(text: str) -> list[str]:
+    """Articles named together with their instrument, as provision IDs: 'Pasal 40 ayat (2) PP
+    35/2021' and 'Undang-Undang Nomor 13 Tahun 2003 Pasal 59'."""
+
+    def kind(name: str) -> str:
+        return KINDS[" ".join(name.lower().split())]
+
+    found = [
+        f"{kind(m.group(2))}-{m.group(3)}-{m.group(4)}/pasal-{m.group(1).lower()}"
+        for m in ARTICLE_OF.finditer(text)
+    ]
+    found += [
+        f"{kind(m.group(1))}-{m.group(2)}-{m.group(3)}/pasal-{m.group(4).lower()}"
+        for m in OF_ARTICLE.finditer(text)
+    ]
+    return list(dict.fromkeys(found))
+
+
 def named_provisions(question: str) -> list[str]:
     """Articles named with their instrument; 'Pasal 59' alone means UU 13/2003, the article
     numbers people quote for labor law."""
-    found = [
-        f"{m.group(2).lower()}-{m.group(3)}-{m.group(4)}/pasal-{m.group(1).lower()}"
-        for m in ARTICLE_OF.finditer(question)
-    ]
-    found += [
-        f"{m.group(1).lower()}-{m.group(2)}-{m.group(3)}/pasal-{m.group(4).lower()}"
-        for m in OF_ARTICLE.finditer(question)
-    ]
+    found = provision_pairs(question)
     if not found and not re.search(INSTRUMENT, question, re.IGNORECASE):
         found = [
             f"uu-13-2003/pasal-{m.group(1).lower()}"

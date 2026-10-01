@@ -2,6 +2,10 @@
 
 The rules are data (rules/pesangon.yaml), versioned by date and tied to the articles they come
 from. Amounts use Decimal and are rounded to whole rupiah.
+
+The answer is as exact as the facts allow: with only the dismissal reason, the multipliers
+("2 x ketentuan"); with the length of service as well, months of wage ("10 bulan upah"); with
+the wage too, rupiah.
 """
 
 from dataclasses import dataclass, field
@@ -28,21 +32,30 @@ class Line:
     formula: str
     amount: int | None  # rupiah; None when it depends on facts the calculator does not have
     basis: str  # source ID of the article
+    months: Decimal | None = None  # months of wage, when the length of service is known
 
 
 @dataclass
 class Result:
     regime: str
     service: str  # '5 tahun 3 bulan'
-    reason: str = ""  # the dismissal reason the amounts rest on, in plain words
+    reason: str = ""  # the dismissal reason the amounts rest on, in plain words, with its article
+    reason_label: str = ""  # ... without the article
+    multipliers: dict[str, Decimal] = field(default_factory=dict)  # pesangon and upmk, x the tables
+    separation_pay: bool = False  # uang pisah, set by contract or company rules
     lines: list[Line] = field(default_factory=list)
     minimum: bool = False  # the amounts are minimums ('paling sedikit')
     notes: list[str] = field(default_factory=list)
     unsupported: str | None = None
+    variants: list[str] = field(default_factory=list)  # other reasons under the same article
 
     @property
     def total(self) -> int:
         return sum(line.amount or 0 for line in self.lines)
+
+    @property
+    def total_months(self) -> Decimal:
+        return sum((line.months for line in self.lines if line.months is not None), Decimal("0"))
 
 
 @cache
@@ -63,8 +76,8 @@ def rupiah(value: Decimal) -> int:
     return int(value.quantize(Decimal("1"), rounding=ROUND_HALF_UP))
 
 
-def fmt(multiplier: float) -> str:
-    return f"{multiplier:g}".replace(".", ",")
+def fmt(multiplier: float | Decimal) -> str:
+    return f"{float(multiplier):g}".replace(".", ",")
 
 
 def regime_on(day: date) -> dict | None:
@@ -76,6 +89,16 @@ def regime_on(day: date) -> dict | None:
     return None
 
 
+def table_articles(day: date) -> list[str]:
+    """The articles that set out the severance tables on the date: Pasal 156 of the labor law, in
+    whatever wording applied, and the regulation that repeats the tables."""
+    found = [rules()["law_article"]]
+    regime = regime_on(day)
+    if regime and regime.get("tables_basis") not in (None, *found):
+        found.append(regime["tables_basis"])
+    return found
+
+
 def reasons_on(day: date) -> dict[str, str]:
     """Dismissal reason codes of the rules in force on the date, with their descriptions."""
     regime = regime_on(day)
@@ -85,9 +108,9 @@ def reasons_on(day: date) -> dict[str, str]:
 
 
 def hitung_pesangon(
-    tanggal_mulai: date,
+    tanggal_mulai: date | None,
     tanggal_phk: date,
-    upah_bulanan: int,
+    upah_bulanan: int | None,
     alasan: str,
     *,
     sisa_cuti_hari: int = 0,
@@ -95,17 +118,21 @@ def hitung_pesangon(
     usaha_mikro_kecil: bool = False,
 ) -> Result:
     """Severance for a dismissal on `tanggal_phk`. `upah_bulanan` is basic wage plus fixed
-    allowances."""
-    if tanggal_phk < tanggal_mulai:
+    allowances. Pass None for the start date or the wage when it is not known: the result then
+    gives multipliers or months of wage instead of rupiah."""
+    if tanggal_mulai is not None and tanggal_phk < tanggal_mulai:
         raise CalculatorError("tanggal PHK sebelum tanggal mulai bekerja")
-    if upah_bulanan <= 0:
+    if upah_bulanan is not None and upah_bulanan <= 0:
         raise CalculatorError("upah bulanan harus lebih dari 0")
     if hari_kerja_per_minggu not in (5, 6):
         raise CalculatorError("hari kerja per minggu harus 5 atau 6")
 
-    months = completed_months(tanggal_mulai, tanggal_phk)
-    years = months // 12
-    result = Result(regime="", service=f"{years} tahun {months % 12} bulan")
+    years = None
+    result = Result(regime="", service="tidak disebut")
+    if tanggal_mulai is not None:
+        months = completed_months(tanggal_mulai, tanggal_phk)
+        years = months // 12
+        result.service = f"{years} tahun {months % 12} bulan"
     regime = regime_on(tanggal_phk)
     if regime is None:
         result.unsupported = "Tanggal PHK di luar cakupan PasalKini (sebelum UU 13/2003)."
@@ -127,45 +154,57 @@ def hitung_pesangon(
         )
     reason = reasons[alasan]
     result.reason = f"{reason['label']} ({reason['basis']})"
-    wage = Decimal(upah_bulanan)
+    result.reason_label = reason["label"]
+    result.multipliers = {key: Decimal(str(reason[key])) for key in ("pesangon", "upmk")}
+    result.separation_pay = bool(reason.get("uang_pisah"))
+    result.variants = [
+        f"{other['label']}: uang pesangon {fmt(other['pesangon'])} x, "
+        f"UPMK {fmt(other['upmk'])} x ketentuan"
+        for code, other in reasons.items()
+        if code != alasan and other["basis"] == reason["basis"]
+    ]
+    wage = Decimal(upah_bulanan) if upah_bulanan is not None else None
     table_basis = regime["tables_basis"]
 
-    severance = Decimal("0")
-    if reason["pesangon"]:
-        table = from_table(rules()["tables"]["pesangon"], years)
-        amount = rupiah(Decimal(str(reason["pesangon"])) * table * wage)
-        severance += amount
+    total_months = Decimal("0")
+    pays = any(result.multipliers.values())
+    if not pays:
         result.lines.append(
             Line(
-                "Uang pesangon",
-                f"{fmt(reason['pesangon'])} x {table} bulan upah",
-                amount,
-                f"{reason['basis']}; {table_basis}",
+                "Uang pesangon dan uang penghargaan masa kerja",
+                "tidak ada untuk alasan ini",
+                None,
+                reason["basis"],
             )
         )
-    if reason["upmk"]:
-        table = from_table(rules()["tables"]["upmk"], years)
-        amount = rupiah(Decimal(str(reason["upmk"])) * table * wage)
-        severance += amount
-        result.lines.append(
-            Line(
-                "Uang penghargaan masa kerja",
-                f"{fmt(reason['upmk'])} x {table} bulan upah",
-                amount,
-                f"{reason['basis']}; {table_basis}",
-            )
-        )
-    if regime["housing_medical_pct"] and severance:
+    for component, key in [("Uang pesangon", "pesangon"), ("Uang penghargaan masa kerja", "upmk")]:
+        if not reason[key]:
+            continue
+        multiplier = Decimal(str(reason[key]))
+        basis = f"{reason['basis']}; {table_basis}"
+        if years is None:
+            formula = f"{fmt(multiplier)} x ketentuan tabel masa kerja"
+            result.lines.append(Line(component, formula, None, basis))
+            continue
+        table = from_table(rules()["tables"][key], years)
+        in_months = multiplier * table
+        total_months += in_months
+        amount = rupiah(in_months * wage) if wage is not None else None
+        formula = f"{fmt(multiplier)} x {table} bulan upah"
+        result.lines.append(Line(component, formula, amount, basis, in_months))
+    if regime["housing_medical_pct"] and pays and (years is None or total_months):
         pct = regime["housing_medical_pct"]
+        in_months = total_months * pct / 100 if years is not None else None
         result.lines.append(
             Line(
                 "UPH: penggantian perumahan serta pengobatan dan perawatan",
                 f"{pct}% x (uang pesangon + UPMK)",
-                rupiah(severance * pct / 100),
+                rupiah(in_months * wage) if wage is not None and in_months is not None else None,
                 table_basis,
+                in_months,
             )
         )
-    if sisa_cuti_hari:
+    if sisa_cuti_hari and wage is not None:
         divisor = 21 if hari_kerja_per_minggu == 5 else 25
         result.lines.append(
             Line(
@@ -214,7 +253,7 @@ def hitung_pesangon(
 def hitung_kompensasi_pkwt(
     tanggal_mulai: date,
     tanggal_berakhir: date,
-    upah_bulanan: int,
+    upah_bulanan: int | None,
     *,
     usaha_mikro_kecil: bool = False,
 ) -> Result:
@@ -251,13 +290,15 @@ def hitung_kompensasi_pkwt(
             "terus-menerus (PP 35/2021 Pasal 15 ayat (3))."
         )
         return result
-    amount = rupiah(Decimal(months) / 12 * Decimal(upah_bulanan))
+    in_months = Decimal(months) / 12
+    amount = rupiah(in_months * Decimal(upah_bulanan)) if upah_bulanan is not None else None
     result.lines.append(
         Line(
             "Uang kompensasi PKWT",
             f"{months}/12 x 1 bulan upah",
             amount,
             "pp-35-2021/pasal-16; pp-35-2021/pasal-15",
+            in_months,
         )
     )
     result.notes.append("Upah = upah pokok dan tunjangan tetap (PP 35/2021 Pasal 16 ayat (2)).")

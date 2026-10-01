@@ -15,9 +15,11 @@ from pasalkini.paths import PROCESSED_DIR
 from pasalkini.sources import Kind, load_manifest
 from pasalkini.temporal.model import Version
 from pasalkini.temporal.query import format_date, validity
+from pasalkini.temporal.rulings import abbreviate
 from pasalkini.temporal.store import load_versions
 
-MAX_NOTE_CHARS = 600
+MAX_NOTE_CHARS = 700  # the longest ruling point is 630 characters once its citations are short
+NOTES_HEADING = "\n\nCatatan:\n"  # between a version's text and its notes
 
 
 @dataclass(frozen=True)
@@ -45,11 +47,13 @@ def version_chunk(version: Version, names: dict[str, str]) -> DatedChunk:
     name = instrument_name(version.instrument_id, names)
     title = f"{name} {version.label} ({validity(version)}{status})"
     # Rulings and status changes are shown with the text; deletion instructions are not needed.
-    notes = [n for n in version.notes if n.startswith("[")]
+    # A ruling point is mostly citation (the law's full title and gazette numbers); written out,
+    # the part that says what the Court decided fell past the length limit.
+    notes = [abbreviate(n) if "/amar-" in n else n for n in version.notes if n.startswith("[")]
     text = version.text
     if notes:
         shown = [n if len(n) <= MAX_NOTE_CHARS else n[:MAX_NOTE_CHARS] + " …" for n in notes]
-        text += "\n\nCatatan:\n" + "\n".join(shown)
+        text += NOTES_HEADING + "\n".join(shown)
     return DatedChunk(
         source_id=version.source_id,
         instrument_id=version.instrument_id,

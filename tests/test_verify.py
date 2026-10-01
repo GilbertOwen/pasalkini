@@ -1,6 +1,18 @@
 from datetime import date
 
-from pasalkini.answer.verify import Answer, Citation, locate, quote_in, verify
+from pasalkini.answer.verify import (
+    Citation,
+    Selection,
+    body_of,
+    check_selection,
+    dates_in,
+    expand,
+    find_spans,
+    locate,
+    numbers_in,
+    quote_in,
+    ungrounded,
+)
 from pasalkini.temporal.corpus import DatedChunk
 
 OLD = DatedChunk(
@@ -27,13 +39,8 @@ NEW = DatedChunk(
 )
 
 
-def answer(*citations: tuple[str, str], abstain: bool = False) -> Answer:
-    return Answer(
-        answer="…",
-        citations=[Citation(source_id=s, quote=q) for s, q in citations],
-        confidence="tinggi",
-        abstain=abstain,
-    )
+def chosen(*citations: tuple[str, str]) -> Selection:
+    return Selection(kutipan=[Citation(source_id=s, quote=q) for s, q in citations])
 
 
 def test_quote_matching_ignores_case_and_whitespace_but_needs_some_length():
@@ -58,46 +65,50 @@ def test_punctuation_does_not_fail_a_quote_but_words_and_numbers_do():
 
 
 def test_brackets_around_a_cited_id_are_tolerated():
-    ok = verify(
-        answer(("[uu-13-2003/pasal-78]", "paling banyak 3 (tiga) jam")),
+    ok = check_selection(
+        chosen(("[uu-13-2003/pasal-78]", "paling banyak 3 (tiga) jam")),
         [OLD],
         date(2019, 6, 1),
         False,
     )
-    assert ok.ok and ok.valid[0].source_id == "uu-13-2003/pasal-78"
+    assert ok.ok and ok.passages[0].source_id == "uu-13-2003/pasal-78"
 
 
-def test_a_correct_citation_passes():
-    ok = verify(
-        answer((OLD.source_id, "paling banyak 3 (tiga) jam")), [OLD], date(2019, 6, 1), False
+def test_a_correct_quote_passes_and_is_shown_in_the_sources_words():
+    ok = check_selection(
+        chosen((OLD.source_id, "Paling banyak 3 (tiga) jam.")), [OLD], date(2019, 6, 1), False
     )
-    assert ok.ok
+    assert ok.ok and ok.passages[0].quote == "paling banyak 3 (tiga) jam"
 
 
 def test_invented_source_misquote_and_wrong_date_are_caught():
-    checks = verify(
-        answer(
-            ("pp-35-2021/pasal-26", "paling lama 4 (empat) jam"),  # not in context
-            (OLD.source_id, "paling lama 4 (empat) jam"),  # not what that text says
+    checks = check_selection(
+        chosen(
+            ("pp-35-2021/pasal-26", "paling lama 5 (lima) jam"),  # nowhere in the context
+            (OLD.source_id, "paling lama 6 (enam) jam"),  # not what any text says
             (NEW.source_id, "paling lama 4 (empat) jam"),  # did not apply in 2019
         ),
         [OLD, NEW],
         date(2019, 6, 1),
         False,
     )
-    assert len(checks.problems) == 3
+    assert len(checks.problems) == 3 and not checks.passages
+    assert checks.failed == ["pp-35-2021/pasal-26", OLD.source_id, NEW.source_id]
 
 
-def test_history_questions_may_cite_old_versions():
-    ok = verify(
-        answer((OLD.source_id, "paling banyak 3 (tiga) jam")), [OLD, NEW], date(2025, 1, 1), True
+def test_history_questions_may_quote_old_versions():
+    ok = check_selection(
+        chosen((OLD.source_id, "paling banyak 3 (tiga) jam")), [OLD, NEW], date(2025, 1, 1), True
     )
     assert ok.ok
 
 
-def test_an_answer_must_cite_something_unless_it_abstains():
-    assert not verify(answer(), [OLD], date(2019, 6, 1), False).ok
-    assert verify(answer(abstain=True), [OLD], date(2019, 6, 1), False).ok
+def test_selecting_nothing_is_not_a_problem_and_the_same_passage_counts_once():
+    assert check_selection(chosen(), [OLD], date(2019, 6, 1), False).ok
+    twice = chosen(
+        (OLD.source_id, "paling banyak 3 (tiga) jam"), (OLD.source_id, "Paling banyak 3 (tiga) jam")
+    )
+    assert len(check_selection(twice, [OLD], date(2019, 6, 1), False).passages) == 1
 
 
 RULED = DatedChunk(
@@ -122,11 +133,12 @@ RULED = DatedChunk(
 def test_a_ruling_named_in_a_chunks_notes_is_shown_under_that_chunk():
     quote = "2 (dua) hari untuk 5 (lima) hari kerja dalam 1 (satu) minggu"
     for cited in ("mk-168-puu-xxi-2023/amar-7", "mk-168-puu-xxi-2023"):
-        check = verify(answer((cited, quote)), [RULED], date(2025, 6, 1), False)
-        assert check.ok and check.valid[0].source_id == RULED.source_id
+        check = check_selection(chosen((cited, quote)), [RULED], date(2025, 6, 1), False)
+        assert check.ok and check.passages[0].source_id == RULED.source_id
+        assert check.passages[0].spans == []  # in the notes, not in the article's own text
     # The ruling's ID does not vouch for words the chunk does not contain.
-    assert not verify(
-        answer(("mk-168-puu-xxi-2023", "3 (tiga) hari untuk 4 (empat) hari kerja")),
+    assert not check_selection(
+        chosen(("mk-168-puu-xxi-2023", "3 (tiga) hari untuk 4 (empat) hari kerja")),
         [RULED],
         date(2025, 6, 1),
         False,
@@ -135,11 +147,13 @@ def test_a_ruling_named_in_a_chunks_notes_is_shown_under_that_chunk():
 
 def test_a_right_quote_under_a_wrong_id_is_shown_under_the_chunk_that_has_it():
     quote = "istirahat mingguan 1 (satu) hari untuk 6 (enam) hari kerja"
-    check = verify(answer(("uu-13-2003/pasal-81", quote)), [OLD, RULED], date(2025, 6, 1), False)
-    assert check.ok and check.valid[0].source_id == RULED.source_id
+    check = check_selection(
+        chosen(("uu-13-2003/pasal-81", quote)), [OLD, RULED], date(2025, 6, 1), False
+    )
+    assert check.ok and check.passages[0].source_id == RULED.source_id
     # ... but not when the only chunk that has it did not apply on the date.
-    late = verify(
-        answer(("pp-35-2021/pasal-26", "paling lama 4 (empat) jam")),
+    late = check_selection(
+        chosen(("pp-35-2021/pasal-26", "paling lama 4 (empat) jam")),
         [OLD, NEW],
         date(2019, 6, 1),
         False,
@@ -219,3 +233,100 @@ def test_the_shown_passage_keeps_the_brackets_around_its_first_and_last_words():
     assert locate(opening, text) == opening
     closing = "menyerahkan sebagian pekerjaan. (2)"
     assert locate(closing, text) == closing
+
+
+REST = (
+    "(1) Pengusaha wajib memberi waktu istirahat dan cuti kepada pekerja/buruh.\n"
+    "(2) Waktu istirahat dan cuti sebagaimana dimaksud dalam ayat (1), meliputi :\n"
+    "a. istirahat antara jam kerja, sekurang kurangnya setengah jam;\n"
+    "b. istirahat mingguan 1 (satu) hari untuk 6 (enam) hari kerja dalam 1 (satu) minggu;\n"
+    "c. cuti tahunan, sekurang kurangnya 12 (dua belas) hari kerja; dan\n"
+    "d. istirahat panjang sekurang-kurangnya 2 (dua) bulan bagi pekerja/buruh yang telah "
+    "bekerja selama 6 (enam) tahun.\n"
+    "(3) Pelaksanaan waktu istirahat tahunan sebagaimana dimaksud dalam ayat (2) huruf c diatur "
+    "dalam perjanjian kerja.\n"
+    "(4) Hak istirahat panjang sebagaimana dimaksud dalam ayat (2) huruf d hanya berlaku bagi "
+    "pekerja/buruh yang bekerja pada perusahaan tertentu.\n"
+    "(5) Perusahaan tertentu sebagaimana dimaksud dalam ayat (4) diatur dengan Keputusan Menteri."
+)
+
+
+def passage(quote: str, body: str = REST) -> tuple[str, set[str]]:
+    return expand(body, find_spans(quote, body))
+
+
+def test_a_quoted_item_is_read_with_its_ayat_and_with_the_line_that_limits_it():
+    text, ayat = passage("istirahat panjang sekurang-kurangnya 2 (dua) bulan")
+    assert ayat == {"2"}
+    assert text.splitlines() == [
+        "(2) Waktu istirahat dan cuti sebagaimana dimaksud dalam ayat (1), meliputi :",
+        "…",
+        "d. istirahat panjang sekurang-kurangnya 2 (dua) bulan bagi pekerja/buruh yang telah "
+        "bekerja selama 6 (enam) tahun.",
+        "…",
+        # Ayat (4) refers back to item d; ayat (3) is about item c and stays out.
+        "(4) Hak istirahat panjang sebagaimana dimaksud dalam ayat (2) huruf d hanya berlaku bagi "
+        "pekerja/buruh yang bekerja pada perusahaan tertentu.",
+    ]
+
+
+def test_a_quoted_opening_line_brings_the_items_under_it_unless_one_is_quoted():
+    opening = "Waktu istirahat dan cuti sebagaimana dimaksud dalam ayat (1), meliputi"
+    text, _ = passage(opening)
+    lines = text.splitlines()
+    assert lines[0].startswith("(2) Waktu istirahat") and lines[4].startswith("d. istirahat")
+    assert not any(line.startswith("(1)") for line in lines)
+    text, _ = passage(opening + ": b. istirahat mingguan 1 (satu) hari untuk 6 (enam) hari kerja")
+    assert [line[:2] for line in text.splitlines()] == ["(2", "…", "b."]
+
+
+def test_a_bracket_scanned_as_a_letter_does_not_fail_a_reference_to_an_ayat():
+    scanned = "sebagaimana dimaksud pada ayat (1), ayat (2l., dan ayat (3), Perusahaan tertentu"
+    assert quote_in("dimaksud pada ayat (1), ayat (2), dan ayat (3), Perusahaan tertentu", scanned)
+    # Only after 'ayat': elsewhere a digit and a letter may be a number the scan garbled.
+    assert not quote_in("paling lama 2 (dua) tahun bekerja", "paling lama 2l (dua) tahun bekerja")
+
+
+def test_a_long_passage_is_cut():
+    body = "(1) Daftar berikut:\n" + "\n".join(f"a. butir nomor {n} " + "x" * 80 for n in range(40))
+    text, _ = passage("Daftar berikut", body)
+    assert len(text) <= 1210 and text.endswith(" …")
+
+
+def test_the_articles_own_text_ends_where_its_notes_begin():
+    assert body_of(RULED).endswith("dalam 1 (satu) minggu.") and "Catatan" not in body_of(RULED)
+
+
+GIVEN = (
+    "PERTANYAAN: Saya lembur 4 jam sehari dengan upah Rp4.500.000.\n"
+    "1. PP 35/2021 Pasal 40 (berlaku sejak 2 Februari 2021)\n"
+    "(2) Uang pesangon diberikan paling banyak 3 (tiga) jam, I (satu) hari, setengah bulan upah "
+    "atau 0,5 kali, sebagaimana dimaksud dalam Pasal 156."
+)
+ARTICLES = {"pp-35-2021/pasal-40"}
+
+
+def test_an_answer_may_only_mention_numbers_and_articles_it_was_given():
+    fine = "Menurut PP 35/2021 Pasal 40 ayat (2), paling banyak 3 jam; 4 jam melebihi batas itu."
+    assert ungrounded(fine, GIVEN, ARTICLES) == []
+    assert ungrounded("Batasnya 14 jam seminggu.", GIVEN, ARTICLES) == ["angka 14"]
+    # The right article under the wrong law, and an article that appears nowhere.
+    assert ungrounded("Lihat Pasal 40 UU No. 13 Tahun 2003.", GIVEN, ARTICLES) == [
+        "Pasal 40 UU 13/2003",
+        "angka 13",
+        "angka 2003",
+    ]
+    assert ungrounded("Lihat Pasal 41.", GIVEN, ARTICLES) == ["Pasal 41"]
+    assert ungrounded("Lihat juga Pasal 156.", GIVEN, ARTICLES) == []  # the passage mentions it
+
+
+def test_numbers_are_compared_by_value_not_by_spelling():
+    assert ungrounded("Upahnya Rp4,5 juta atau Rp 4.500.000,00.", GIVEN, ARTICLES) == []
+    assert ungrounded("Satu hari, yaitu 1 hari, dan 0.5 kali.", GIVEN, ARTICLES) == []
+    assert numbers_in("18.000.000 dan 1,80 serta 2 juta") == ["18000000", "1,8", "2000000"]
+
+
+def test_dates_in_an_answer_are_found():
+    answer = "Pasal itu dihapus sejak 2 November 2020 dan diganti pada 2022 oleh UU 13/2003."
+    assert dates_in(answer) == ["2 November 2020", "pada 2022"]
+    assert dates_in("Batasnya 4 jam sehari menurut PP 35/2021.") == []

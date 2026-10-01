@@ -10,29 +10,35 @@ from test_answer_pipeline import (
     INDEX,
     NEW,
     OLD,
+    PICKS_OLD,
     QUERY,
+    SAID,
     TODAY,
+    picks,
     says,
 )
 
 from pasalkini.answer.agent import MAX_STEPS, Action, Agent
 from pasalkini.answer.llm import Reply
 from pasalkini.answer.pipeline import OUT_OF_SCOPE
-from pasalkini.answer.verify import Answer
+from pasalkini.answer.verify import Answer, Selection
 from pasalkini.retrieve.dense import DenseIndex
 
 
 class Script:
-    def __init__(self, actions, answers=(), facts=None):
-        self.actions, self.answers, self.facts = list(actions), list(answers), facts
+    def __init__(self, actions, selections=(), answers=(), facts=None):
+        self.actions, self.selections = list(actions), list(selections)
+        self.answers, self.facts = list(answers), facts
         self.calls: list[tuple[str, list[dict]]] = []
 
     def __call__(self, options, messages, schema):
         self.calls.append((schema.__name__, list(messages)))
         if schema is Action:
             parsed = self.actions.pop(0)
+        elif schema is Selection:
+            parsed = self.selections.pop(0)
         elif schema is Answer:
-            parsed = self.answers.pop(0)
+            parsed = self.answers.pop(0) if self.answers else says(SAID)
         else:
             parsed = schema.model_validate(self.facts)
         return Reply(parsed, parsed.model_dump_json(), 10, 5, 0.0)
@@ -55,7 +61,7 @@ def run(chat, question="Berapa jam lembur maksimal?", day=date(2019, 6, 1)):
     return Agent(CONFIG, CHUNKS, INDEX, None, chat=chat, today=TODAY).run(question, day, QUERY)
 
 
-CITES_OLD = says((OLD.source_id, "paling banyak 3 (tiga) jam"))
+CITES_OLD = PICKS_OLD
 
 
 def test_the_agent_searches_with_its_own_query_then_answers(embedded_on_cpu):
@@ -111,7 +117,8 @@ def test_the_agent_stops_when_it_repeats_an_action():
 def test_the_calculator_tool_brings_its_articles_into_the_context():
     chat = Script(
         [Action(aksi="hitung"), Action(aksi="jawab")],
-        [says((COMPENSATION.source_id, "uang kompensasi diberikan dengan ketentuan"))],
+        [picks((COMPENSATION.source_id, "uang kompensasi diberikan dengan ketentuan"))],
+        [says("Dasarnya ketentuan tentang uang kompensasi.")],
         facts={"jenis": "kompensasi_pkwt", "lama_tahun": 0, "lama_bulan": 6, "upah_bulanan": 0},
     )
     question = "Kontrak PKWT saya 6 bulan dengan upah Rp4.000.000 berakhir. Berapa kompensasinya?"
@@ -119,3 +126,4 @@ def test_the_calculator_tool_brings_its_articles_into_the_context():
     assert outcome.calculation.result.total == 2_000_000
     assert outcome.understanding.intent == "hitung"
     assert [c.source_id for c in outcome.context] == [COMPENSATION.source_id]
+    assert outcome.answer.startswith("Menurut hitungan program, uang kompensasi PKWT-nya Rp2.000")

@@ -15,11 +15,12 @@ __pycache__/
 data/*
 !data/README.md
 
-# Eval runs: keep only the summaries
+# Eval runs: keep only the summaries and the grades given by reading the answers
 evals/runs/*/*
 !evals/runs/*/summary.md
 !evals/runs/*/config.json
 !evals/runs/*/grading.csv
+!evals/runs/*/grades-*.csv
 
 # Editors and tools
 .vscode/
