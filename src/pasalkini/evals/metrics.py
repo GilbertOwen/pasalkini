@@ -99,6 +99,7 @@ class ItemResult(BaseModel):
     grounded_first: bool | None = None  # the first answer mentioned nothing it was not given
     rewritten: bool | None = None
     reselected: bool | None = None  # the model picked quotes again after finding no answer
+    trimmed: bool | None = None  # its sentences after a code-written opening failed twice
     answer_problems: list[str] = []  # what the first answer mentioned that it was not given
     ungrounded: list[str] = []  # ... and what the shown answer still does
     later_sources: list[str] = []  # law that began after the date, shown as such and not cited

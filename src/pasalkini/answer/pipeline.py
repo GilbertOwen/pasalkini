@@ -210,10 +210,14 @@ LOWER_RANK = (
     "yang sudah diubah Putusan MK, ikuti undang-undang dan Putusan MK."
 )
 NO_BASIS = "dasar yang tidak ada di KUTIPAN"
+NAMES_ARTICLES = "nomor pasal atau ayat"  # after a calculation, which lists its own bases
+ARTICLE_REFERENCE = re.compile(r"\bPasal\s+\d+|\bayat\s+\(\d+\)", re.IGNORECASE)
 
 CALCULATION_TASK = (
-    "KALIMAT PEMBUKA sudah menyebut hasil hitungan. Tambahkan 1 sampai 2 kalimat tentang dasar "
-    "hukumnya atau hak lain menurut KUTIPAN. Jangan menulis jumlah uang dan jangan menghitung."
+    "KALIMAT PEMBUKA sudah menyebut hasil hitungan. Jika PERTANYAAN juga menanyakan hal lain, "
+    "jawab hal itu dari KUTIPAN; jika tidak, tambahkan 1 kalimat tentang syarat atau hak lain "
+    "menurut KUTIPAN. Jangan menulis jumlah uang, jangan menghitung, dan jangan menyebut nomor "
+    "pasal atau ayat: dasar hukumnya sudah ditampilkan program."
 )
 STATUS_TASK = (
     "Jawab apakah aturan itu masih berlaku pada TANGGAL, menurut RIWAYAT PASAL dan KUTIPAN. "
@@ -241,8 +245,10 @@ class Outcome:
     drafts: list[Reply] = field(default_factory=list)  # the answer call; two after a rewrite
     answer_problems: list[str] = field(default_factory=list)  # checks of the first answer
     ungrounded: list[str] = field(default_factory=list)  # what the shown answer still fails
+    repaired: bool = False  # the quotes were picked a second time after the checks
     rewritten: bool = False  # the answer was written a second time after the checks
     reselected: bool = False  # the model picked again after finding no answer in its passages
+    trimmed: bool = False  # the model's sentences after the opening failed the checks twice
     said: str = ""  # the model's sentences; empty when it wrote none or found no answer
     declined: str = ""  # what the model said it could not find
     dispute: bool = False  # the model read the question as about the asker's own dispute
@@ -263,7 +269,7 @@ class Outcome:
 
     @property
     def retried(self) -> bool:
-        return len(self.selections) > 1
+        return self.repaired
 
     @property
     def replies(self) -> list[Reply]:
@@ -438,10 +444,15 @@ def rewrite_message(problems: list[str]) -> str:
     if problems == [TOO_LONG]:
         return f"{TOO_LONG} Tulis ulang lebih singkat: paling banyak 2 kalimat."
     dates = [p for p in problems if p.startswith("tanggal ")]
-    others = [p for p in problems if p not in dates and p != NO_BASIS]
+    others = [p for p in problems if p not in dates and p not in (NO_BASIS, NAMES_ARTICLES)]
     lines = []
     if NO_BASIS in problems:
         lines.append("Isian dasar di atas tidak ditemukan di KUTIPAN: salin persis dari KUTIPAN.")
+    if NAMES_ARTICLES in problems:
+        lines.append(
+            "Jawaban di atas menyebut nomor pasal atau ayat; dasar hukumnya sudah ditampilkan "
+            "program."
+        )
     if others:
         lines.append(
             f"Jawaban di atas menyebut hal yang tidak tertulis di KUTIPAN: {', '.join(others)}."
@@ -603,25 +614,39 @@ class Pipeline:
                 outcome.passages, outcome.dropped = passages, failed
             if not problems or attempt == 2:
                 return
+            outcome.repaired = True
             messages = [*outcome.asked, {"role": "user", "content": selection_repair(problems)}]
 
     def reselect(self, outcome: Outcome) -> bool:
-        """The answer step found no answer in the passages. The model picks again, told what was
-        missing; True when it picks passages it had not picked before."""
+        """The answer step found no answer in the passages. The model picks again: first told
+        what was missing; then, if it picks the same passages, with the articles it quoted taken
+        out of the context. True when it picks passages it had not picked before."""
         u = outcome.understanding
-        messages = [*outcome.asked, {"role": "user", "content": reselect_message(outcome.declined)}]
-        reply = self.chat(self.select_options, messages, Selection)
-        outcome.selections.append(reply)
-        outcome.reselected = True
-        if reply.parsed is None:
-            return False
-        checked = check_selection(reply.parsed, outcome.context, u.as_of, u.history)
         had = {(p.source_id, p.quote) for p in outcome.passages}
-        fresh = [p for p in checked.passages if (p.source_id, p.quote) not in had]
-        if not fresh:
-            return False
-        outcome.passages, outcome.dropped = fresh, checked.failed
-        return True
+        quoted = {id(p.chunk) for p in outcome.passages}
+        attempts = [
+            [*outcome.asked, {"role": "user", "content": reselect_message(outcome.declined)}]
+        ]
+        others = [chunk for chunk in outcome.context if id(chunk) not in quoted]
+        if others:
+            user = selection_message(
+                outcome.question, u, others, self.config.max_chars_per_chunk, outcome.terms
+            )
+            attempts.append(
+                [{"role": "system", "content": SELECT_PROMPT}, {"role": "user", "content": user}]
+            )
+        outcome.reselected = True
+        for messages in attempts:
+            reply = self.chat(self.select_options, messages, Selection)
+            outcome.selections.append(reply)
+            if reply.parsed is None:
+                continue
+            checked = check_selection(reply.parsed, outcome.context, u.as_of, u.history)
+            fresh = [p for p in checked.passages if (p.source_id, p.quote) not in had]
+            if fresh:
+                outcome.passages, outcome.dropped = fresh, checked.failed
+                return True
+        return False
 
     def wording_count(self, provision_id: str, as_of: date) -> int:
         """How many wordings the article had by the date."""
@@ -751,7 +776,17 @@ class Pipeline:
             problems.append(NO_BASIS)
         if outcome.understanding.history:
             problems += [f"tanggal {found}" for found in dates_in(answer.answer)]
+        if outcome.calculation is not None and outcome.lead:
+            if ARTICLE_REFERENCE.search(answer.answer):
+                problems.append(NAMES_ARTICLES)
         return problems
+
+    def keep_or_trim(self, outcome: Outcome) -> None:
+        """After an opening written by code the model's sentences are an extra: they are shown
+        only if they pass the checks. Without an opening they are the answer, and are shown
+        with a note on what failed."""
+        if outcome.lead and outcome.said and outcome.ungrounded:
+            outcome.said, outcome.ungrounded, outcome.trimmed = "", [], True
 
     def checked_twice(self, outcome: Outcome, system: str, schema: type, problems_of) -> object:
         """Ask, check, and ask once more with the problems listed. Returns the reply to show:
@@ -796,6 +831,7 @@ class Pipeline:
             outcome.declined = final.answer.strip()
         elif final is not None:
             outcome.said, outcome.dispute = final.answer.strip(), final.perselisihan
+        self.keep_or_trim(outcome)
 
     def compare(self, outcome: Outcome) -> bool:
         """A question about change, answered as two summaries: what the old wording says and
@@ -840,6 +876,7 @@ class Pipeline:
             f"Bunyi lama: {unlabelled(both.lama)} Bunyi yang berlaku pada "
             f"{format_date(u.as_of)}: {unlabelled(both.sekarang)}"
         )
+        self.keep_or_trim(outcome)
         return True
 
     def write(self, outcome: Outcome) -> None:

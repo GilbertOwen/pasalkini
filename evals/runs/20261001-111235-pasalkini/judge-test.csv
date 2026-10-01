@@ -1,0 +1,37 @@
+id,split,grade,by,reason
+alih-daya-001-a,test,correct,model,
+alih-daya-001-b,test,wrong,model,poin 1 bertentangan
+upah-001-a,test,wrong,model,poin 1 bertentangan; poin 5 bertentangan
+upah-001-b,test,wrong,model,poin utama tidak disebut
+status-002,test,wrong,model,poin 1 bertentangan
+date-002,test,correct,model,
+lembur-001-a,test,correct,model,
+lembur-001-b,test,correct,model,
+phk-001-a,test,correct,model,
+phk-001-b,test,partly,model,poin utama tidak disebut
+phk-001-c,test,partly,model,poin 2 bertentangan; poin 3 bertentangan
+sektoral-001-a,test,correct,model,
+sektoral-001-b,test,wrong,model,poin 1 bertentangan
+sektoral-001-c,test,correct,model,
+sektoral-001-d,test,correct,model,
+uph-001-a,test,correct,model,
+uph-001-b,test,wrong,model,poin 1 bertentangan
+uph-001-c,test,wrong,model,poin 1 bertentangan; larangan 1 dilanggar
+status-004,test,correct,model,
+abstain-004,test,correct,code,menolak dengan tepat
+abstain-005,test,correct,code,menolak dengan tepat
+abstain-006,test,correct,code,menolak dengan tepat
+abstain-007,test,correct,code,menolak dengan tepat
+abstain-008,test,correct,code,menolak dengan tepat
+adversarial-003,test,wrong,model,poin 1 bertentangan
+adversarial-004,test,correct,code,menolak dengan tepat
+adversarial-005,test,wrong,model,poin 1 bertentangan
+calc-003,test,correct,model,
+calc-004,test,correct,model,
+calc-005,test,correct,model,
+changed-003,test,partly,model,poin utama tidak disebut
+changed-004,test,partly,model,poin utama tidak disebut
+stable-004,test,correct,model,
+stable-005,test,correct,model,
+date-006,test,correct,model,
+date-007,test,correct,model,

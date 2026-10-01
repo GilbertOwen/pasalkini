@@ -1,0 +1,37 @@
+id,split,grade,by,reason
+alih-daya-001-a,test,correct,model,
+alih-daya-001-b,test,wrong,model,"poin 1 bertentangan; keliru: Tidak, perusahaan tidak boleh memakai pekerja outsourcing untuk kegiatan pokok atau yang berhubungan langsung dengan pro"
+upah-001-a,test,wrong,model,poin utama tidak disebut
+upah-001-b,test,wrong,model,poin 1 bertentangan; poin 3 bertentangan; poin 4 bertentangan; larangan 1 dilanggar
+status-002,test,wrong,model,poin 1 bertentangan
+date-002,test,partly,model,poin utama tidak disebut
+lembur-001-a,test,wrong,model,"poin 1 bertentangan; larangan 1 dilanggar; keliru: Berdasarkan peraturan yang berlaku saat ini (UU No. 11 Tahun 2020 dan PP No. 35 Tahun 2021), batas maksimal jam kerja le"
+lembur-001-b,test,correct,model,
+phk-001-a,test,correct,model,
+phk-001-b,test,partly,model,poin utama tidak disebut
+phk-001-c,test,correct,model,
+sektoral-001-a,test,wrong,model,poin 1 bertentangan
+sektoral-001-b,test,wrong,model,poin 1 bertentangan; poin 3 bertentangan; keliru: Pasal 89 UU 13/2003 dihapus oleh UU 11/2020 (Pasal 81 angka 26)
+sektoral-001-c,test,correct,model,
+sektoral-001-d,test,partly,model,poin utama tidak disebut
+uph-001-a,test,correct,model,
+uph-001-b,test,wrong,model,"poin 1 bertentangan; keliru: Pasal 156 ayat (4) sebagaimana diubah hanya meliputi cuti tahunan yang belum diambil dan belum gugur, ongkos pulang, dan"
+uph-001-c,test,wrong,model,poin 1 bertentangan; larangan 1 dilanggar
+status-004,test,wrong,model,poin 1 bertentangan; keliru: Pasal 164 ayat (3) UU No. 13/2003 tentang frasa 'perusahaan tutup' tidak berlaku lagi karena telah dinyatakan bertentang
+abstain-004,test,correct,model,
+abstain-005,test,wrong,model,poin utama tidak disebut
+abstain-006,test,wrong,model,poin utama tidak disebut
+abstain-007,test,correct,model,
+abstain-008,test,wrong,model,poin utama tidak disebut
+adversarial-003,test,partly,model,poin utama tidak disebut
+adversarial-004,test,wrong,model,poin 1 bertentangan
+adversarial-005,test,partly,model,poin utama tidak disebut
+calc-003,test,partly,model,poin 2 bertentangan; poin 5 bertentangan
+calc-004,test,correct,model,
+calc-005,test,wrong,model,"poin 1 bertentangan; poin 4 bertentangan; keliru: Perhitungannya adalah 18 bulan x Rp5.400.000,00 per bulan"
+changed-003,test,partly,model,poin utama tidak disebut
+changed-004,test,wrong,model,poin utama tidak disebut
+stable-004,test,wrong,model,poin 1 bertentangan
+stable-005,test,correct,model,
+date-006,test,correct,model,
+date-007,test,wrong,model,"poin 1 bertentangan; poin 2 bertentangan; keliru: Berdasarkan konteks yang Anda berikan, karena PHK dilakukan karena efisiensi (bukan sakit berkepanjangan atau kerugian t"
