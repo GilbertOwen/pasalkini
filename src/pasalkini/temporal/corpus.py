@@ -26,6 +26,7 @@ class DatedChunk(Chunk):
     status: str  # in_force | conditional | repealed
     valid_from: date
     valid_to: date | None  # exclusive; None: still applies
+    rulings: tuple[str, ...] = ()  # MK ruling points that condition this version
 
     def valid_on(self, day: date) -> bool:
         return self.valid_from <= day and (self.valid_to is None or day < self.valid_to)
@@ -59,6 +60,7 @@ def version_chunk(version: Version, names: dict[str, str]) -> DatedChunk:
         status=version.status,
         valid_from=version.valid_from,
         valid_to=version.valid_to,
+        rulings=tuple(version.rulings),
     )
 
 

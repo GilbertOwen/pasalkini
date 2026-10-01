@@ -84,6 +84,14 @@ class ItemResult(BaseModel):
     prompt_tokens: int | None = None
     output_tokens: int | None = None
     truncated_chunks: int | None = None
+    # Phase 5 pipeline only. For it, 'retrieved' is the context in order, with no scores.
+    intent: str | None = None
+    as_of_source: str | None = None  # pertanyaan | pemilih_tanggal | hari_ini
+    abstained: bool | None = None
+    first_pass_ok: bool | None = None  # the first answer passed the citation checks
+    retried: bool | None = None
+    dropped_citations: list[str] = []  # cited by the final answer but failed the checks
+    calculation: str | None = None
 
     # Metrics, recomputed by score() from the fields above and the current answer keys.
     recall_at_5: float | None = None
@@ -94,6 +102,27 @@ class ItemResult(BaseModel):
     invalid_citations: list[str] = []  # cited IDs that were not in the context
     cited_expected: bool | None = None
     stale_cited: bool | None = None  # the answer cites a must_not_cite source
+    date_ok: bool | None = None  # the date read from the question is the key's date
+    abstain_ok: bool | None = None  # abstained exactly when the key says it should
+    intent_ok: bool | None = None
+
+
+# The intent each category implies. Date-extraction questions mix explanations and
+# calculations, so they are not scored on intent.
+INTENT_BY_CATEGORY = {
+    "stable_rule": "jelaskan",
+    "temporal_trap": "jelaskan",
+    "status": "status",
+    "what_changed": "riwayat",
+    "calculation": "hitung",
+    "adversarial": "jelaskan",
+}
+
+
+def expected_intent(item: EvalItem) -> str | None:
+    if item.should_abstain:
+        return "di_luar_cakupan"
+    return INTENT_BY_CATEGORY.get(item.category.value)
 
 
 def score(result: ItemResult, item: EvalItem) -> ItemResult:
@@ -106,12 +135,19 @@ def score(result: ItemResult, item: EvalItem) -> ItemResult:
     result.recall_at_10 = recall(ids[:10], item.expected_sources)
     result.hit_at_5 = any_expected(ids[:5], item.expected_sources)
     result.stale_in_context = any_forbidden(result.context_ids, item.must_not_cite)
+    if item.date_in_question and result.as_of_used is not None:
+        result.date_ok = result.as_of_used == item.as_of
     if result.json_ok is None:  # retrieval-only run
         return result
     result.citations = extract_ids(result.citations_raw)
     result.invalid_citations = [c for c in result.citations if c not in result.context_ids]
     result.cited_expected = any_expected(result.citations, item.expected_sources)
     result.stale_cited = any_forbidden(result.citations, item.must_not_cite)
+    if result.abstained is not None:
+        result.abstain_ok = result.abstained == item.should_abstain
+        expected = expected_intent(item)
+        if expected is not None and result.intent is not None:
+            result.intent_ok = result.intent == expected
     return result
 
 
@@ -164,12 +200,49 @@ SUMMARY_HEADER = [
 ]
 
 
-def summary_table(results: list[ItemResult]) -> list[str]:
-    rows = [summary_row("All", results)]
+def groups(results: list[ItemResult]) -> list[tuple[str, list[ItemResult]]]:
+    found = [("All", results)]
     for category in sorted({r.category for r in results}):
-        rows.append(summary_row(category, [r for r in results if r.category == category]))
+        found.append((category, [r for r in results if r.category == category]))
     for split in ("dev", "test"):
-        rows.append(summary_row(f"split: {split}", [r for r in results if r.split == split]))
-    lines = ["| " + " | ".join(SUMMARY_HEADER) + " |", "|" + "---|" * len(SUMMARY_HEADER)]
-    lines += ["| " + " | ".join(row) + " |" for row in rows]
-    return lines
+        found.append((f"split: {split}", [r for r in results if r.split == split]))
+    return found
+
+
+def table(header: list[str], rows: list[list[str]]) -> list[str]:
+    lines = ["| " + " | ".join(header) + " |", "|" + "---|" * len(header)]
+    return lines + ["| " + " | ".join(row) + " |" for row in rows]
+
+
+def summary_table(results: list[ItemResult]) -> list[str]:
+    return table(SUMMARY_HEADER, [summary_row(label, group) for label, group in groups(results)])
+
+
+PIPELINE_HEADER = [
+    "Group",
+    "Abstained correctly",
+    "Intent correct",
+    "Date from question correct",
+    "Citations pass first try",
+    "Repaired",
+    "Citations dropped",
+]
+
+
+def pipeline_table(results: list[ItemResult]) -> list[str]:
+    """Phase 5 checks: abstention, classification, and how often verification had to step in."""
+    rows = []
+    for label, group in groups(results):
+        answered = [r for r in group if r.first_pass_ok is not None]
+        rows.append(
+            [
+                label,
+                percent([r.abstain_ok for r in group]),
+                percent([r.intent_ok for r in group]),
+                percent([r.date_ok for r in group]),
+                percent([r.first_pass_ok for r in answered]),
+                percent([r.retried for r in answered]),
+                percent([bool(r.dropped_citations) for r in answered]),
+            ]
+        )
+    return table(PIPELINE_HEADER, rows)

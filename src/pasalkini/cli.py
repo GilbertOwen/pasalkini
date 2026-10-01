@@ -179,6 +179,9 @@ def cmd_ask(args: argparse.Namespace) -> None:
         config.embed_model, chunks, config.embed_num_ctx, with_titles=config.chunk_headers
     )
     lexical = BM25Index(chunks) if config.retriever != "dense" else None
+    if config.answer_mode == "verified":
+        ask_pipeline(args, config, chunks, index, lexical)
+        return
     text = expand_query(args.question, load_topics()) if config.rewrite_query else args.question
     query_vector = index.embed_query(text, config.query_instruction, config.embed_num_ctx)
     search = make_search(config.retriever, config.top_k, index, query_vector, lexical, text)
@@ -217,6 +220,35 @@ def cmd_ask(args: argparse.Namespace) -> None:
     for chunk, score in hits:
         print(f"  {score:.3f}  {chunk.source_id:<40} {chunk.title}")
     print(f"\n{result.seconds:.1f} s, {result.prompt_tokens} + {result.output_tokens} tokens")
+
+
+def ask_pipeline(args: argparse.Namespace, config, chunks, index, lexical) -> None:
+    from datetime import date
+
+    from pasalkini.answer.pipeline import Pipeline
+    from pasalkini.sources import load_topics
+
+    # Embed first and free the embedding model: on a 6 GB GPU it cannot stay loaded next to
+    # the chat model.
+    query_vector = index.embed_queries(
+        [args.question], config.query_instruction, config.embed_num_ctx, unload=True
+    )[0]
+    date_hint = date.fromisoformat(args.date) if args.date else None
+    pipeline = Pipeline(config, chunks, index, lexical, load_topics())
+    outcome = pipeline.run(args.question, date_hint, query_vector)
+    u = outcome.understanding
+    print("Informasi hukum, bukan nasihat hukum. Dijawab oleh AI.\n")
+    print(outcome.display())
+    print(
+        f"\nTanggal {u.as_of} ({u.as_of_source}); jenis pertanyaan {u.intent} ({u.method}); "
+        f"keyakinan {outcome.confidence}"
+    )
+    print("Konteks:")
+    for chunk in outcome.context:
+        print(f"  {chunk.source_id:<40} {chunk.title}")
+    if outcome.retried:
+        print("Diperbaiki sekali setelah pemeriksaan: " + "; ".join(outcome.first_problems))
+    print(", ".join(f"{step} {seconds:.1f} s" for step, seconds in outcome.seconds.items()))
 
 
 def main() -> None:
@@ -270,7 +302,7 @@ def main() -> None:
     ask = sub.add_parser("ask", help="ask one question")
     ask.add_argument("question")
     ask.add_argument("--date", help="the date that decides which law applies (YYYY-MM-DD)")
-    ask.add_argument("--config", default="temporal", choices=sorted(CONFIGS))
+    ask.add_argument("--config", default="pasalkini", choices=sorted(CONFIGS))
 
     args = parser.parse_args()
     handlers = {

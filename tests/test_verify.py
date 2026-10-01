@@ -42,6 +42,22 @@ def test_quote_matching_ignores_case_and_whitespace_but_needs_some_length():
     assert not quote_in("paling banyak 5 (lima) jam", OLD.text)
 
 
+def test_a_shortened_quote_passes_when_each_part_is_there_in_order():
+    assert quote_in("waktu kerja lembur … paling banyak 3 (tiga) jam", OLD.text)
+    assert not quote_in("paling banyak 3 (tiga) jam … waktu kerja lembur", OLD.text)
+    assert not quote_in("waktu kerja lembur … jam", OLD.text)  # each part needs some length
+
+
+def test_brackets_around_a_cited_id_are_tolerated():
+    ok = verify(
+        answer(("[uu-13-2003/pasal-78]", "paling banyak 3 (tiga) jam")),
+        [OLD],
+        date(2019, 6, 1),
+        False,
+    )
+    assert ok.ok and ok.valid[0].source_id == "uu-13-2003/pasal-78"
+
+
 def test_a_correct_citation_passes():
     ok = verify(
         answer((OLD.source_id, "paling banyak 3 (tiga) jam")), [OLD], date(2019, 6, 1), False

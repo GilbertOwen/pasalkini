@@ -2,7 +2,8 @@
 
 A citation passes when:
 - its source ID is one of the chunks the model was given;
-- the quote appears in that chunk's text (ignoring case and whitespace);
+- the quote appears in that chunk's text (ignoring case, whitespace and quotation marks; a quote
+  shortened with '…' passes when each part appears, in order);
 - unless the question is about history, the chunk applied on the question's date.
 An answer that does not abstain must cite at least one source.
 """
@@ -16,12 +17,13 @@ from pydantic import BaseModel, Field
 
 from pasalkini.corpus import Chunk
 
-MIN_QUOTE_CHARS = 12
+MIN_QUOTE_CHARS = 12  # each part of a quote; shorter text verifies nothing
+ELLIPSIS = re.compile(r"\s*(?:…|\.{3,})\s*")
 
 
 class Citation(BaseModel):
     source_id: str = Field(description="ID sumber dari KONTEKS, persis, tanpa tanda kurung")
-    quote: str = Field(description="kutipan persis dari teks sumber itu, 1-2 kalimat")
+    quote: str = Field(description="kutipan persis dari teks sumber itu, satu kalimat atau frasa")
 
 
 class Answer(BaseModel):
@@ -37,22 +39,57 @@ class Answer(BaseModel):
 
 @dataclass
 class Verification:
+    checked: list[tuple[Citation, str | None]] = field(default_factory=list)  # (citation, problem)
     problems: list[str] = field(default_factory=list)
 
     @property
     def ok(self) -> bool:
         return not self.problems
 
+    @property
+    def valid(self) -> list[Citation]:
+        return [citation for citation, problem in self.checked if problem is None]
+
 
 def _normalise(text: str) -> str:
-    text = text.lower().replace("…", " ").replace("...", " ")
-    text = re.sub(r"[\"'“”‘’]", "", text)
+    text = re.sub(r"[\"'“”‘’]", "", text.lower())
     return re.sub(r"\s+", " ", text).strip()
 
 
 def quote_in(quote: str, text: str) -> bool:
-    quote_n = _normalise(quote)
-    return len(quote_n) >= MIN_QUOTE_CHARS and quote_n in _normalise(text)
+    parts = [_normalise(part) for part in ELLIPSIS.split(quote)]
+    parts = [part for part in parts if part]
+    if not parts or any(len(part) < MIN_QUOTE_CHARS for part in parts):
+        return False
+    haystack, position = _normalise(text), 0
+    for part in parts:
+        found = haystack.find(part, position)
+        if found < 0:
+            return False
+        position = found + len(part)
+    return True
+
+
+def clean_source_id(source_id: str) -> str:
+    """Models sometimes keep the brackets the context shows around IDs: '[uu-13-2003/pasal-59]'."""
+    return source_id.strip().strip("[]{}()<>").strip().lower()
+
+
+def check_citation(
+    citation: Citation, context: list[Chunk], as_of: date | None, history: bool
+) -> str | None:
+    """The problem with one citation, or None when it passes."""
+    source_id = citation.source_id
+    candidates = [c for c in context if c.source_id == source_id]
+    if not candidates:
+        return f"[{source_id}] tidak ada di KONTEKS."
+    quoted = [c for c in candidates if quote_in(citation.quote, c.text)]
+    if not quoted:
+        return f"[{source_id}] kutipan tidak ditemukan persis di teks sumbernya."
+    if as_of is not None and not history:
+        if not any(not hasattr(c, "valid_on") or c.valid_on(as_of) for c in quoted):
+            return f"[{source_id}] tidak berlaku pada {as_of.isoformat()}."
+    return None
 
 
 def verify(answer: Answer, context: list[Chunk], as_of: date | None, history: bool) -> Verification:
@@ -62,19 +99,9 @@ def verify(answer: Answer, context: list[Chunk], as_of: date | None, history: bo
     if not answer.citations:
         result.problems.append("Jawaban tidak mencantumkan sumber.")
     for citation in answer.citations:
-        candidates = [c for c in context if c.source_id == citation.source_id]
-        if not candidates:
-            result.problems.append(f"[{citation.source_id}] tidak ada di KONTEKS.")
-            continue
-        if not any(quote_in(citation.quote, c.text) for c in candidates):
-            result.problems.append(
-                f"[{citation.source_id}] kutipan tidak ditemukan persis di teks sumbernya."
-            )
-            continue
-        if as_of is not None and not history:
-            valid = [c for c in candidates if not hasattr(c, "valid_on") or c.valid_on(as_of)]
-            if not valid:
-                result.problems.append(
-                    f"[{citation.source_id}] tidak berlaku pada {as_of.isoformat()}."
-                )
+        cleaned = citation.model_copy(update={"source_id": clean_source_id(citation.source_id)})
+        problem = check_citation(cleaned, context, as_of, history)
+        result.checked.append((cleaned, problem))
+        if problem:
+            result.problems.append(problem)
     return result

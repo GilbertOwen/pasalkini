@@ -1,12 +1,12 @@
-"""Generate an answer from retrieved chunks with a local Ollama model (structured JSON output)."""
+"""The Phase 2 answer step: a short JSON answer with source IDs, no checks. The baseline and the
+retrieval ablations use it; the Phase 5 pipeline is in pasalkini.answer.pipeline."""
 
-import time
 from dataclasses import dataclass
 from datetime import date
 
-import ollama
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
+from pasalkini.answer.llm import ChatOptions, chat_json
 from pasalkini.corpus import Chunk
 
 SYSTEM_PROMPT = (
@@ -18,10 +18,6 @@ SYSTEM_PROMPT = (
     "Jika konteks tidak cukup untuk menjawab, katakan demikian. "
     "Ini informasi hukum, bukan nasihat hukum."
 )
-
-# Answers take under a minute; a request still open after this has hung (for example across a
-# laptop sleep), and the caller can retry.
-CLIENT = ollama.Client(timeout=300)
 
 
 class BaselineAnswer(BaseModel):
@@ -76,30 +72,16 @@ def generate(
     max_tokens: int = 1024,
 ) -> Generation:
     user, truncated = build_user_message(question, as_of, chunks, max_chars)
-    started = time.perf_counter()
-    response = CLIENT.chat(
-        model=model,
-        messages=[{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}],
-        format=BaselineAnswer.model_json_schema(),
-        think=think,
-        options={
-            "temperature": temperature,
-            "seed": seed,
-            "num_ctx": num_ctx,
-            "num_predict": max_tokens,
-        },
+    reply = chat_json(
+        ChatOptions(model, temperature, seed, num_ctx, max_tokens, think),
+        [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}],
+        BaselineAnswer,
     )
-    seconds = time.perf_counter() - started
-    raw = response.message.content
-    try:
-        answer = BaselineAnswer.model_validate_json(raw)
-    except ValidationError:
-        answer = None
     return Generation(
-        answer=answer,
-        raw=raw,
-        prompt_tokens=response.prompt_eval_count or 0,
-        output_tokens=response.eval_count or 0,
-        seconds=seconds,
+        answer=reply.parsed,
+        raw=reply.raw,
+        prompt_tokens=reply.prompt_tokens,
+        output_tokens=reply.output_tokens,
+        seconds=reply.seconds,
         truncated_chunks=truncated,
     )

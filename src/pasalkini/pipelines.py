@@ -33,6 +33,10 @@ class PipelineConfig(BaseModel):
     # Caps runaway generations: under enforced JSON a small model can loop until its context is
     # full, at about 10 tokens/s. A capped answer is invalid JSON and is counted as such.
     max_answer_tokens: int = 1024
+    # baseline: the Phase 2 answer step (short JSON with source IDs, nothing checked)
+    # verified: the Phase 5 pipeline (pasalkini.answer.pipeline): question classified, articles
+    #   the question names added, exact quotes checked in code, calculator for amounts
+    answer_mode: Literal["baseline", "verified"] = "baseline"
 
 
 CONFIGS: dict[str, PipelineConfig] = {
@@ -100,6 +104,19 @@ CONFIGS: dict[str, PipelineConfig] = {
                 ),
             ]
         ],
+        PipelineConfig(
+            name="pasalkini",
+            description=(
+                "Phase 5 pipeline: the model classifies the question and rules read its date; "
+                "date-aware hybrid search plus the articles the question names; the answer "
+                "quotes its sources word for word and code checks every citation (one repair, "
+                "then abstain); severance and PKWT compensation are computed in code."
+            ),
+            corpus="versions",
+            date_filter=True,
+            retriever="hybrid",
+            answer_mode="verified",
+        ),
     ]
 }
 
