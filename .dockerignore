@@ -1,0 +1,14 @@
+# The image holds the code and the source list. Data is a volume; the rest is not needed to run.
+.git
+.github
+.venv
+.worktrees
+.claude
+.pytest_cache
+.ruff_cache
+**/__pycache__
+data
+evals
+notebooks
+tests
+docker

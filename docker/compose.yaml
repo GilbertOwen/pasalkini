@@ -1,0 +1,44 @@
+# From the repository root:
+#   docker compose -f docker/compose.yaml up --build
+# then open http://localhost:8000
+#
+# Needs Ollama running on the host with qwen3.5:4b and qwen3-embedding:0.6b pulled.
+# With traces in Phoenix (http://localhost:6006):
+#   PASALKINI_TRACE_ENDPOINT=http://phoenix:6006/v1/traces \
+#     docker compose -f docker/compose.yaml --profile tracing up --build
+
+services:
+  pasalkini:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      # This machine only: the app has no login and no rate limit.
+      - "127.0.0.1:8000:8000"
+    environment:
+      # Ollama on the host. If the app cannot reach it, Ollama is listening on 127.0.0.1 only:
+      # set OLLAMA_HOST=0.0.0.0 for the Ollama server and restart it.
+      OLLAMA_HOST: http://host.docker.internal:11434
+      PASALKINI_TRACE_ENDPOINT: ${PASALKINI_TRACE_ENDPOINT:-}
+    extra_hosts:
+      # Docker Desktop provides this name itself; on Linux this line does.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ../data:/app/data
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # The first start builds the data before it serves.
+      start_period: 15m
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    profiles: ["tracing"]
+    ports:
+      - "127.0.0.1:6006:6006"
