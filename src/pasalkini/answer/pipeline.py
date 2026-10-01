@@ -66,6 +66,7 @@ from pasalkini.sources import Topics, load_manifest
 from pasalkini.temporal.corpus import NOTES_HEADING, DatedChunk
 from pasalkini.temporal.query import format_date
 from pasalkini.tools.pesangon import table_articles
+from pasalkini.trace import RETRIEVER, TOOL, note, span, traced
 
 SEARCH_POOL = 10
 HISTORY_POOL = 20  # history hits repeat a wording once per period
@@ -552,7 +553,9 @@ class Pipeline:
         self, question: str, date_hint: date | None, query_vector: np.ndarray | None = None
     ) -> Outcome:
         started = time.perf_counter()
-        u = understand(question, date_hint, self.today, self.chat, self.short_options)
+        with span("understand"):
+            u = understand(question, date_hint, self.today, self.chat, self.short_options)
+            note(intent=u.intent, as_of=u.as_of.isoformat(), as_of_source=u.as_of_source)
         outcome = Outcome(question, u, seconds={"understand": round(u.seconds, 2)})
         if u.intent == "di_luar_cakupan":
             outcome.answer, outcome.abstained = OUT_OF_SCOPE, True
@@ -561,31 +564,37 @@ class Pipeline:
             return outcome
         asked = u.intent == "hitung"
         if asked or may_calculate(question):
-            calculation = calculate(question, u.as_of, self.chat, self.short_options, strict=asked)
+            with span("calculate", TOOL):
+                calculation = calculate(
+                    question, u.as_of, self.chat, self.short_options, strict=asked
+                )
+                note(kind=calculation.kind, error=calculation.error)
             outcome.seconds["calculate"] = round(calculation.seconds, 2)
             # Nobody asked for a calculation: one that cannot be made is not worth showing.
             if asked or not calculation.error:
                 outcome.calculation = calculation
 
         step = time.perf_counter()
-        if query_vector is None:
-            query_vector = self.index.embed_query(
-                question, self.config.query_instruction, self.config.embed_num_ctx
+        with span("retrieve", RETRIEVER):
+            if query_vector is None:
+                query_vector = self.index.embed_query(
+                    question, self.config.query_instruction, self.config.embed_num_ctx
+                )
+            outcome.vector = query_vector
+            outcome.terms = self.topics.spelled_out(question) if self.topics else None
+            sources = outcome.calculation.sources if outcome.calculation else []
+            # A question about severance gets the articles that hold the severance tables: the
+            # search often ranks the articles on dismissal reasons above them.
+            tables = table_articles(u.as_of) if about_severance(question) else []
+            named = list(dict.fromkeys(u.provisions + tables))
+            hits = self.search(question, query_vector, u)
+            outcome.context = gather(
+                self.library, hits, named, sources, u.as_of, u.history, self.config.top_k
             )
-        outcome.vector = query_vector
-        outcome.terms = self.topics.spelled_out(question) if self.topics else None
-        sources = outcome.calculation.sources if outcome.calculation else []
-        # A question about severance gets the articles that hold the severance tables: the
-        # search often ranks the articles on dismissal reasons above them.
-        tables = table_articles(u.as_of) if about_severance(question) else []
-        named = list(dict.fromkeys(u.provisions + tables))
-        hits = self.search(question, query_vector, u)
-        outcome.context = gather(
-            self.library, hits, named, sources, u.as_of, u.history, self.config.top_k
-        )
-        if u.history:
-            histories = [history_of(self.library, p, u.as_of) for p in u.provisions]
-            outcome.timeline = "\n\n".join(h for h in histories if h) or None
+            if u.history:
+                histories = [history_of(self.library, p, u.as_of) for p in u.provisions]
+                outcome.timeline = "\n\n".join(h for h in histories if h) or None
+            note(documents=[(chunk.source_id, chunk.title) for chunk in outcome.context])
         outcome.seconds["retrieve"] = round(time.perf_counter() - step, 2)
 
         step = time.perf_counter()
@@ -595,6 +604,7 @@ class Pipeline:
         outcome.seconds["total"] = round(time.perf_counter() - started, 2)
         return outcome
 
+    @traced("select")
     def select(self, outcome: Outcome) -> None:
         """The model picks quotes; code checks them. One repair with the problems listed."""
         u = outcome.understanding
@@ -620,10 +630,12 @@ class Pipeline:
             if passages or attempt == 1:
                 outcome.passages, outcome.dropped = passages, failed
             if not problems or attempt == 2:
+                note(passages=[p.source_id for p in outcome.passages], dropped=outcome.dropped)
                 return
             outcome.repaired = True
             messages = [*outcome.asked, {"role": "user", "content": selection_repair(problems)}]
 
+    @traced("select again")
     def reselect(self, outcome: Outcome) -> bool:
         """The answer step found no answer in the passages. The model picks again: first told
         what was missing; then, if it picks the same passages, with the articles it quoted taken
@@ -736,6 +748,7 @@ class Pipeline:
             added.append(by_code(self.whole(first, u.as_of), spans))
         return added[:2]
 
+    @traced("later law")
     def look_later(self, outcome: Outcome) -> None:
         """The law of the date holds no answer. See whether an article or ruling that began
         afterwards does: 'did this right exist then?' is answered by when it began."""
@@ -817,6 +830,7 @@ class Pipeline:
                 outcome.ungrounded = [p for p in outcome.answer_problems if p != TOO_LONG]
         return shown_reply
 
+    @traced("answer")
     def compose(self, outcome: Outcome) -> None:
         """The model writes from the passages. An answer that mentions a number, an article or
         (for history) a date it was not given is rewritten once."""
@@ -838,7 +852,9 @@ class Pipeline:
             if outcome.calculation is not None and outcome.lead:
                 outcome.said = without_amounts(outcome.said)  # code has stated the amounts
         self.keep_or_trim(outcome)
+        note(problems=outcome.answer_problems, still=outcome.ungrounded, declined=outcome.declined)
 
+    @traced("answer")
     def compare(self, outcome: Outcome) -> bool:
         """A question about change, answered as two summaries: what the old wording says and
         what the wording in force says, each from its own passages and each checked against

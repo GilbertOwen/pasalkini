@@ -14,6 +14,7 @@ import ollama
 
 from pasalkini.corpus import Chunk, corpus_fingerprint
 from pasalkini.paths import PROCESSED_DIR
+from pasalkini.trace import EMBEDDING, span
 
 INDEX_DIR = PROCESSED_DIR / "index"
 BATCH_SIZE = 16
@@ -48,17 +49,18 @@ def embed_texts(
     """
     options = {"num_ctx": num_ctx, "num_gpu": 0} if on_cpu else {"num_ctx": num_ctx}
     vectors = []
-    for start in range(0, len(texts), BATCH_SIZE):
-        batch = texts[start : start + BATCH_SIZE]
-        last = start + BATCH_SIZE >= len(texts)
-        response = ollama.embed(
-            model=model,
-            input=batch,
-            truncate=True,
-            options=options,
-            keep_alive=0 if unload and last else None,
-        )
-        vectors += response.embeddings
+    with span("embed", EMBEDDING, model=model, texts=len(texts), on_cpu=on_cpu):
+        for start in range(0, len(texts), BATCH_SIZE):
+            batch = texts[start : start + BATCH_SIZE]
+            last = start + BATCH_SIZE >= len(texts)
+            response = ollama.embed(
+                model=model,
+                input=batch,
+                truncate=True,
+                options=options,
+                keep_alive=0 if unload and last else None,
+            )
+            vectors += response.embeddings
     return _normalise(np.asarray(vectors, dtype=np.float32))
 
 

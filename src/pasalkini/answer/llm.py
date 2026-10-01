@@ -7,6 +7,8 @@ from dataclasses import dataclass
 import ollama
 from pydantic import BaseModel, ValidationError
 
+from pasalkini.trace import LLM, span
+
 # Answers take under a minute; a request still open after this has hung (for example across a
 # laptop sleep), and the caller can retry.
 CLIENT = ollama.Client(timeout=300)
@@ -43,23 +45,30 @@ def chat_json[T: BaseModel](
     options: ChatOptions, messages: list[dict], schema: type[T]
 ) -> Reply[T]:
     started = time.perf_counter()
-    response = CLIENT.chat(
-        model=options.model,
-        messages=messages,
-        format=schema.model_json_schema(),
-        think=options.think,
-        options={
-            "temperature": options.temperature,
-            "seed": options.seed,
-            "num_ctx": options.num_ctx,
-            "num_predict": options.max_tokens,
-        },
-    )
-    raw = response.message.content
-    try:
-        parsed = schema.model_validate_json(raw)
-    except ValidationError:
-        parsed = None
+    with span(f"chat: {schema.__name__}", LLM, model=options.model, messages=messages) as call:
+        response = CLIENT.chat(
+            model=options.model,
+            messages=messages,
+            format=schema.model_json_schema(),
+            think=options.think,
+            options={
+                "temperature": options.temperature,
+                "seed": options.seed,
+                "num_ctx": options.num_ctx,
+                "num_predict": options.max_tokens,
+            },
+        )
+        raw = response.message.content
+        try:
+            parsed = schema.model_validate_json(raw)
+        except ValidationError:
+            parsed = None
+        call.attributes.update(
+            output=raw,
+            prompt_tokens=response.prompt_eval_count or 0,
+            output_tokens=response.eval_count or 0,
+            valid_json=parsed is not None,
+        )
     return Reply(
         parsed=parsed,
         raw=raw,

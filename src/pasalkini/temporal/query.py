@@ -49,18 +49,25 @@ def history(versions: list[Version], provision_id: str) -> list[Version]:
     )
 
 
-def word_diff(old: str, new: str) -> str:
-    """Word-level diff: [-removed-] {+added+}."""
+def diff_segments(old: str, new: str) -> list[tuple[str, str | None]]:
+    """Word-level diff as runs of words: (text, '-') removed, (text, '+') added, (text, None)
+    unchanged."""
     a, b = old.split(), new.split()
-    out = []
+    out: list[tuple[str, str | None]] = []
     for op, i1, i2, j1, j2 in difflib.SequenceMatcher(a=a, b=b, autojunk=False).get_opcodes():
         if op == "equal":
-            out.append(" ".join(a[i1:i2]))
+            out.append((" ".join(a[i1:i2]), None))
         if op in ("delete", "replace"):
-            out.append("[-" + " ".join(a[i1:i2]) + "-]")
+            out.append((" ".join(a[i1:i2]), "-"))
         if op in ("insert", "replace"):
-            out.append("{+" + " ".join(b[j1:j2]) + "+}")
-    return " ".join(out)
+            out.append((" ".join(b[j1:j2]), "+"))
+    return out
+
+
+def word_diff(old: str, new: str) -> str:
+    """Word-level diff: [-removed-] {+added+}."""
+    marks = {"-": "[-{}-]", "+": "{{+{}+}}", None: "{}"}
+    return " ".join(marks[kind].format(text) for text, kind in diff_segments(old, new))
 
 
 def validity(version: Version) -> str:

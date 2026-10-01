@@ -302,6 +302,29 @@ def ask_pipeline(args: argparse.Namespace, config, chunks, index, lexical) -> No
     print(", ".join(f"{step} {seconds:.1f} s" for step, seconds in outcome.seconds.items()))
 
 
+def cmd_setup(args: argparse.Namespace) -> None:
+    """Everything between a fresh clone and a running app: download, parse, build, index."""
+    print("1/4 Download: the official PDFs (skipped where already downloaded)")
+    cmd_download(argparse.Namespace(only=None, force=False))
+    print("2/4 Parse: PDFs to articles, amendment points and MK rulings")
+    cmd_parse(argparse.Namespace(only=None))
+    print("3/4 Build: events and article versions with the dates they applied")
+    cmd_build(args)
+    print("4/4 Index: embed the article versions (needs Ollama; cached afterwards)")
+    cmd_index(argparse.Namespace(config="pasalkini"))
+    print("\nReady. Start the app with: uv run pasalkini serve")
+
+
+def cmd_serve(args: argparse.Namespace) -> None:
+    import uvicorn
+
+    from pasalkini.api.main import create_app
+
+    app = create_app()
+    print(f"PasalKini: http://{args.host}:{args.port}  (API: /docs, UI: /ui)")
+    uvicorn.run(app, host=args.host, port=args.port)
+
+
 def main() -> None:
     # Windows consoles default to a legacy code page when output is piped.
     if hasattr(sys.stdout, "reconfigure"):
@@ -367,8 +390,16 @@ def main() -> None:
     ask.add_argument("--date", help="the date that decides which law applies (YYYY-MM-DD)")
     ask.add_argument("--config", default="pasalkini", choices=sorted(CONFIGS))
 
+    sub.add_parser("setup", help="download, parse, build and index: from a fresh clone to ready")
+    serve = sub.add_parser("serve", help="run the app: the API and the four screens")
+    # 127.0.0.1: reachable from this machine only. The app has no login and no rate limit.
+    serve.add_argument("--host", default="127.0.0.1")
+    serve.add_argument("--port", type=int, default=8000)
+
     args = parser.parse_args()
     handlers = {
+        "setup": cmd_setup,
+        "serve": cmd_serve,
         "download": cmd_download,
         "parse": cmd_parse,
         "spotcheck": cmd_spotcheck,
