@@ -1,6 +1,6 @@
 # Evaluation results
 
-Status on 2026-10-01, after Phase 5. This page is rewritten as the evaluation grows (Phase 6 of `PLAN.md`).
+Status on 2026-10-01, at the end of Phase 5. This page is rewritten as the evaluation grows (Phase 6 of `PLAN.md`).
 
 ## Read this first
 
@@ -75,6 +75,28 @@ Run `20261001-111235-pasalkini`, all 78 questions.
 
 The answer step now uses nearly every expected source it is given (61 of 62). What is left to win is in retrieval: 5 questions, 4 of them temporal traps (for example "is the severance table a minimum or a fixed amount?", whose answer sits in the long table of Pasal 156).
 
+### A fixed pipeline or an agent?
+
+Run `20261001-164725-pasalkini-agent` (commit `fe3bf89`). Same date rules, same answer step, same citation check, but the model chooses what to look up: one action per step (search with its own query, an article's history, the calculator, answer, refuse), at most four steps.
+
+| | `pasalkini` (pipeline) | `pasalkini-agent` |
+|---|---|---|
+| Answer cites a stale source | 0% (0/57) | 0% (0/57) |
+| Answer cites an expected source | 91% (61/67) | 81% (54/67) |
+| ... on the 36 held-out questions | 93% (28/30) | 77% (23/30) |
+| Expected source reaches the context | 93% (62/67) | 85% (57/67) |
+| Refuses or abstains exactly when it should | 100% (78/78) | 92% (72/78) |
+| First answer passes the citation check | 88% (60/68) | 90% (56/62) |
+| Median seconds per question | 6.7 | 9.5 |
+
+- The agent made 2.0 tool calls a question on average: 140 searches, 8 calculator runs and 7 history look-ups. 12 questions used no tool.
+- Its own search queries found the expected source less often than searching with the question: it lost 10 questions in retrieval, the pipeline 5.
+- It opened an article's history on 5 of the 8 status and what-changed questions. Without it the agent sees only the current wording. In a trial on the development question about overtime it searched four times, never opened the history, and answered that nothing fundamental had changed (the limit went from 3 to 4 hours a day).
+- All 6 of its abstention errors were refusals or abstentions on questions it should have answered, two of them adversarial questions. It refused all 8 out-of-scope questions.
+- Stale citations stay at 0% either way: the date filter sits inside the search tool, where the model cannot skip it.
+
+For a 4B model on this task the fixed pipeline is better on every count that differs, and takes about 30% less time. The agent stays in the code as a comparison (`uv run pasalkini eval pasalkini-agent`), not as the default.
+
 ### The citation check, before and after
 
 The first version of the check wanted the quote word for word. On the 61-question run of 10:21 (commit `0a7276e`), 65% of first answers passed (37/57), 35% were sent back and 21% ended with a citation dropped. Reading every failure on the development split showed the model was rarely inventing text:
@@ -99,5 +121,4 @@ Seen while reading development answers:
 - Hand grading has not been done, so there is no number yet for whether answers are right, only for what they cite.
 - Retrieval: Recall@5 0.77 on the pipeline's context; the 5 lost questions above.
 - Older MK rulings on UU 13/2003 are not in the model, so some articles show as in force until 2020.
-- The agent loop with tools planned for Phase 5 has not been compared with the pipeline.
 - The new labor law (DPR plenary planned for 6 October 2026) is not in the corpus.

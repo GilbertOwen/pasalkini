@@ -49,7 +49,7 @@ question (+ date) ─► date: read from the question, else the date picker, els
 | Arithmetic in code | `tools/pesangon.py` | Exact, testable, and each rule names its article |
 | Code checks every citation | `answer/verify.py` | A small model tidies what it copies and mixes up IDs; the check finds the passage, refuses a changed number, and shows the source's own words |
 | Code states what it knows exactly | `answer/context.py`, `tools/pesangon.py` | An article's timeline and a severance amount come from the temporal model and the rules; the model explains them |
-| A fixed pipeline, not an agent | `answer/pipeline.py` | A 4B model follows a fixed flow more reliably; an agent loop has to beat it on the evals first |
+| A fixed pipeline, not an agent | `answer/pipeline.py`, `answer/agent.py` | Measured: letting the 4B model choose its own searches and tools cites an expected source in 81% of answers against 91%, and is slower (`docs/eval-results.md`) |
 
 ## Checks that keep it honest
 
