@@ -70,9 +70,15 @@ def test_no_expected_source_that_did_not_exist_yet(manifest):
                 )
 
 
-def test_test_split_is_roughly_a_third():
+def test_test_split_is_held_out_but_not_most_of_the_set():
     share = sum(item.split == "test" for item in ITEMS) / len(ITEMS)
-    assert 0.2 <= share <= 0.4
+    assert 0.2 <= share <= 0.5
+
+
+def test_every_category_has_held_out_questions():
+    """A behaviour tuned on dev (refusals, the calculator) needs test questions to report on."""
+    held_out = {item.category for item in ITEMS if item.split == "test"}
+    assert held_out == {item.category for item in ITEMS}
 
 
 @pytest.mark.parametrize("item", ITEMS, ids=lambda item: item.id)
