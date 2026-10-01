@@ -1,6 +1,6 @@
 from datetime import date
 
-from pasalkini.answer.verify import Answer, Citation, quote_in, verify
+from pasalkini.answer.verify import Answer, Citation, locate, quote_in, verify
 from pasalkini.temporal.corpus import DatedChunk
 
 OLD = DatedChunk(
@@ -131,14 +131,83 @@ def test_a_ruling_named_in_a_chunks_notes_is_shown_under_that_chunk():
         date(2025, 6, 1),
         False,
     ).ok
-    assert not verify(answer(("mk-91-puu-xviii-2020", quote)), [RULED], date(2025, 6, 1), False).ok
+
+
+def test_a_right_quote_under_a_wrong_id_is_shown_under_the_chunk_that_has_it():
+    quote = "istirahat mingguan 1 (satu) hari untuk 6 (enam) hari kerja"
+    check = verify(answer(("uu-13-2003/pasal-81", quote)), [OLD, RULED], date(2025, 6, 1), False)
+    assert check.ok and check.valid[0].source_id == RULED.source_id
+    # ... but not when the only chunk that has it did not apply on the date.
+    late = verify(
+        answer(("pp-35-2021/pasal-26", "paling lama 4 (empat) jam")),
+        [OLD, NEW],
+        date(2019, 6, 1),
+        False,
+    )
+    assert late.problems == ["[pp-35-2021/pasal-26] tidak berlaku pada 2019-06-01."]
 
 
 def test_a_quote_may_join_a_lists_opening_line_and_one_of_its_rows():
     quote = "Waktu istirahat wajib diberikan paling sedikit meliputi: b. istirahat mingguan 1 hari"
-    assert not quote_in(quote, RULED.text)  # 'wajib diberikan paling sedikit' skips words
+    # The quote leaves out 'kepada pekerja/buruh' and '(satu)'; the user sees the text's words.
+    assert locate(quote, RULED.text) == (
+        "Waktu istirahat wajib diberikan kepada pekerja/buruh paling sedikit meliputi: "
+        "b. istirahat mingguan 1 (satu) hari"
+    )
     stitched = (
         "Waktu istirahat wajib diberikan kepada pekerja/buruh paling sedikit meliputi: "
         "5 (lima) hari kerja dalam 1 (satu) minggu"
     )
     assert quote_in(stitched, RULED.text)
+
+
+def test_ocr_digit_confusions_do_not_fail_a_correctly_read_quote():
+    scanned = "b. istirahat mingguan I (satu) hari untuk 6 (enam) hari kerja dalam 1 (satu) minggu"
+    assert quote_in("istirahat mingguan 1 (satu) hari untuk 6 (enam) hari kerja", scanned)
+    assert quote_in(
+        "dimaksud dalam Pasal 80 ayat (1)", "sebagaimana dimaksud dalam Pasal 8O ayat (l)"
+    )
+    assert not quote_in("istirahat mingguan 2 (satu) hari untuk 6 (enam) hari kerja", scanned)
+
+
+def test_a_tidied_quote_is_found_and_shown_in_the_sources_words():
+    source = (
+        "(3) Pekerja/buruh yang mengundurkan diri sebagaimana dimaksud dalam ayat (1) harus "
+        "memenuhi syarat : a. mengajukan permohonan pengunduran diri secara tertulis "
+        "selambat-lambatnya 30 (tiga puluh) hari sebelum tanggal mulai pengunduran diri; "
+        "b. tidak terikat dalam ikatan dinas"
+    )
+    tidied = (
+        "Pekerja/buruh yang mengundurkan diri atas kemauan sendiri harus memenuhi syarat: "
+        "mengajukan permohonan pengunduran diri secara tertulis selambat-lambatnya 30 (tiga "
+        "puluh) hari sebelum tanggal mulai pengunduran diri."
+    )
+    shown = locate(tidied, source)
+    assert shown.startswith("Pekerja/buruh yang mengundurkan diri sebagaimana dimaksud dalam")
+    assert shown.endswith("30 (tiga puluh) hari sebelum tanggal mulai pengunduran diri")
+    # A word the PDF broke at a line end is the same word.
+    broken = (
+        "uang penghargaan masa kerja ditetapkan sebagai be-rikut : a. masa kerja 3 (tiga) tahun"
+    )
+    assert quote_in("uang penghargaan masa kerja ditetapkan sebagai berikut", broken)
+    # A changed number is never a near match, in digits or in words.
+    assert not quote_in(tidied.replace("30 (tiga puluh)", "14 (empat belas)"), source)
+    assert not quote_in(tidied.replace("30 (tiga puluh)", "30 (dua puluh)"), source)
+    # Words from all over the article are not a passage.
+    assert not quote_in(
+        "pekerja yang terikat dalam permohonan dinas harus mengundurkan diri", source
+    )
+
+
+def test_a_quote_is_found_where_its_words_are_together_not_where_one_phrase_repeats():
+    article = (
+        "(2) Perjanjian kerja untuk waktu tertentu sebagaimana dimaksud pada ayat (1) didasarkan "
+        "atas: a. jangka waktu; atau b. selesainya suatu pekerjaan tertentu. "
+        "(3) Jangka waktu atau selesainya suatu pekerjaan tertentu sebagaimana dimaksud pada "
+        "ayat (2) ditentukan berdasarkan perjanjian kerja."
+    )
+    quote = (
+        "Perjanjian kerja untuk waktu tertentu didasarkan atas jangka waktu atau selesainya "
+        "suatu pekerjaan tertentu."
+    )
+    assert locate(quote, article).startswith("Perjanjian kerja untuk waktu tertentu sebagaimana")

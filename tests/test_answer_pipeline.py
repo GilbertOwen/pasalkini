@@ -110,7 +110,7 @@ def test_a_verified_answer_is_shown_with_what_changed_later():
 def test_a_misquote_is_repaired_once():
     chat = ScriptedChat(
         answers=[
-            says((OLD.source_id, "paling banyak 3 jam sehari")),  # not the text's words
+            says((OLD.source_id, "paling banyak 5 (lima) jam sehari")),  # the text says 3
             says((OLD.source_id, "paling banyak 3 (tiga) jam")),
         ]
     )

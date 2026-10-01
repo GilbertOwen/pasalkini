@@ -287,6 +287,8 @@ def run(config_name: str, retrieval_only: bool = False) -> Path:
             "so it has no retrieval-only mode. Use temporal-hybrid for retrieval alone."
         )
     items = load_golden()
+    # Fingerprint what was loaded: the file may be edited while a long run is going.
+    dataset_sha = hashlib.sha256(GOLDEN_PATH.read_bytes()).hexdigest()
     chunks = load_chunks(config)
     if not chunks:
         raise SystemExit("No parsed documents. Run `uv run pasalkini parse` first.")
@@ -361,7 +363,7 @@ def run(config_name: str, retrieval_only: bool = False) -> Path:
         "dataset": {
             "items": len(items),
             "reviewed": sum(i.review == "done" for i in items),
-            "sha256": hashlib.sha256(GOLDEN_PATH.read_bytes()).hexdigest(),
+            "sha256": dataset_sha,
         },
         "started_at": started_at.isoformat(timespec="seconds"),
         "finished_at": datetime.now().isoformat(timespec="seconds"),

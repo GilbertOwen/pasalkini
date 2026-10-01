@@ -25,6 +25,39 @@ Indonesian labor law has changed several times: UU 13/2003, the Cipta Kerja law 
 5. **Calculate in code.** Severance and PKWT compensation come from `src/pasalkini/tools/pesangon.py`, whose rules are versioned by date and cite their articles. The model only reads the facts from the question; it explains the numbers but never computes them.
 6. **Refuse what is out of scope.** Questions outside labor law, or requests to act as the user's lawyer or promise an outcome, get a refusal and a referral.
 
+## Results so far
+
+Provisional: the answer keys are drafts that a person still has to check, and 61 questions is a small set. Everything runs on a laptop GPU (RTX 3060, 6 GB) with `qwen3.5:4b` and `qwen3-embedding:0.6b`.
+
+**Does the answer cite law that did not apply on the question's date?** All 61 questions; 50 of them name sources that must not be cited.
+
+| Pipeline | Stale text given to the model | Answer cites a stale source | Answer cites an expected source |
+|---|---|---|---|
+| `baseline`: plain RAG, dates ignored | 92% (46/50) | 70% (35/50) | 62% (35/56) |
+| `versions`: every chunk labelled with its validity dates, no filter | 86% (43/50) | 66% (33/50) | 61% (34/56) |
+| `temporal`: only versions that applied on the date are searched | 0% (0/50) | 0% (0/49) | 85% (47/55) |
+| `temporal-hybrid`: the same, dense + BM25 | 0% (0/50) | 0% (0/50) | 82% (46/56) |
+
+Telling the model when each text applied is not enough: it still cited outdated law two times in three. Removing the outdated text before the search is what works.
+
+**Retrieval** on the 42 development questions (the test split is used only to report):
+
+| Configuration | Recall@5 | MRR@10 |
+|---|---|---|
+| `baseline` (dense, dates ignored) | 0.61 | 0.56 |
+| `temporal` (dense, date filter) | 0.68 | 0.77 |
+| `temporal` + query rewriting | 0.71 | 0.77 |
+| `temporal` + titles embedded with the text | 0.68 | 0.77 |
+| `temporal-bm25` | 0.67 | 0.77 |
+| `temporal-hybrid` (dense + BM25) | 0.73 | 0.81 |
+| `temporal-hybrid` + query rewriting | 0.70 | 0.79 |
+| `temporal-hybrid` + embedded titles | 0.72 | 0.82 |
+| `temporal-hybrid` + both | 0.71 | 0.77 |
+
+Hybrid search was chosen on these numbers. On the 19 test questions it does not beat dense search (Recall@5 0.67 against 0.71); the difference is about two questions either way, so the choice is weak. The planned target of Recall@5 ≥ 0.90 is not met.
+
+Each run's configuration, model digests, git commit and per-category table are in `evals/runs/<run>/summary.md`.
+
 ## Quick start
 
 Needs [uv](https://docs.astral.sh/uv/) and [Ollama](https://ollama.com) with `qwen3.5:4b` and `qwen3-embedding:0.6b`.
