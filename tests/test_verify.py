@@ -211,3 +211,11 @@ def test_a_quote_is_found_where_its_words_are_together_not_where_one_phrase_repe
         "suatu pekerjaan tertentu."
     )
     assert locate(quote, article).startswith("Perjanjian kerja untuk waktu tertentu sebagaimana")
+
+
+def test_the_shown_passage_keeps_the_brackets_around_its_first_and_last_words():
+    text = "(1) Perusahaan dapat menyerahkan sebagian pekerjaan. (2) Pemerintah menetapkan."
+    opening = "(1) Perusahaan dapat menyerahkan sebagian"
+    assert locate(opening, text) == opening
+    closing = "menyerahkan sebagian pekerjaan. (2)"
+    assert locate(closing, text) == closing

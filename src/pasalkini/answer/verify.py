@@ -148,7 +148,16 @@ def locate(quote: str, text: str) -> str | None:
         begin, total, found = last, total + len(part), found + matched
     if not spans or found < MIN_COVERAGE * total:
         return None
-    shown = [text[source[first][1] : source[last - 1][2]] for first, last in spans]
+    shown = []
+    for first, last in spans:
+        start, end = source[first][1], source[last - 1][2]
+        # Words carry no punctuation, so '(1)' would be cut to '1)': take the bracket or
+        # quotation mark that opens the first word and closes the last.
+        if start > 0 and text[start - 1] in '(“"':
+            start -= 1
+        if end < len(text) and text[end] in ')”"':
+            end += 1
+        shown.append(text[start:end])
     return " … ".join(" ".join(piece.split()) for piece in shown)
 
 

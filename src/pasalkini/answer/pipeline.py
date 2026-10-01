@@ -48,9 +48,12 @@ yang tidak ditemukan.
 sendiri dan jangan mengulang rinciannya: rincian ditampilkan oleh program.
 6. Jika ada RIWAYAT PASAL, pakai tanggal dan statusnya apa adanya dan jelaskan dengan \
 kata-katamu sendiri: riwayat lengkap ditampilkan oleh program.
-7. Untuk PHK atau perselisihan yang dipersoalkan, isi referral: mediator hubungan industrial di \
+7. Putusan MK yang berbunyi "sepanjang tidak dimaknai ..." tidak menghapus ketentuan itu: \
+ketentuan tetap berlaku dengan makna yang ditetapkan MK. Sebutkan makna itu, jangan menulis \
+bahwa ketentuannya tidak berlaku.
+8. Untuk PHK atau perselisihan yang dipersoalkan, isi referral: mediator hubungan industrial di \
 dinas ketenagakerjaan setempat, serikat pekerja, atau LBH.
-8. Tulis jawaban singkat: paling banyak 4 kalimat pendek, dalam bahasa Indonesia yang mudah \
+9. Tulis jawaban singkat: paling banyak 4 kalimat pendek, dalam bahasa Indonesia yang mudah \
 dipahami."""
 
 DATE_SOURCES = {
