@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 
-from pasalkini.evals.metrics import ItemResult, matches_expected, percent, score
+from pasalkini.evals.metrics import ItemResult, matches_expected, median, percent, score
 from pasalkini.evals.schema import load_golden
 
 
@@ -44,6 +44,8 @@ COLUMNS = [
     "Answer cites stale source",
     "Answer cites expected source",
     "Cites an ID not in context",
+    "Abstained correctly",
+    "Median s per question",
 ]
 
 
@@ -69,6 +71,8 @@ def compare(run_dirs: list[Path], split: str | None = None, category: str | None
             percent([bool(r.invalid_citations) if r.citations else None for r in answered])
             if answered
             else "n/a",
+            percent([r.abstain_ok for r in answered]),
+            median([r.generation_s for r in answered]),
         ]
         lines.append("| " + " | ".join(row) + " |")
     return "\n".join(lines)

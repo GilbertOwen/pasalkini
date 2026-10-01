@@ -8,7 +8,7 @@ Ask a labor-law question and a date. PasalKini answers with the law that applied
 
 ## Status
 
-Phase 3 of the [build plan](PLAN.md): the temporal model and date-aware retrieval work end to end on a local model. The evaluation set has 61 dated questions whose answer keys are still drafts awaiting human review, so all numbers are provisional.
+Phase 5 of the [build plan](PLAN.md): date-aware retrieval and the verified answer pipeline work end to end on a local model. The evaluation set has 61 dated questions whose answer keys are still drafts awaiting human review, so all numbers are provisional.
 
 ## Why
 
@@ -20,9 +20,10 @@ Indonesian labor law has changed several times: UU 13/2003, the Cipta Kerja law 
 2. **Model time.** Every change is an event: a law takes effect, an article is amended, inserted or deleted, an MK ruling conditions an article, a law is revoked. Replaying the events in date order gives every article's versions with the dates they applied. Examples from the real data:
    - UU 13/2003 Pasal 64 (outsourcing): original until 1 Nov 2020, deleted by UU 11/2020, rewritten by Perppu 2/2022 from 30 Dec 2022, conditional under MK 168 from 31 Oct 2024.
    - Pasal 78 (overtime): at most 3 hours a day until 2020, 4 hours a day after.
-3. **Retrieve by date.** A question gets a date (from the date picker, or read from the question). Only versions that applied on that date are searched, so an answer about 2019 cannot quote a 2021 regulation. Questions about change ("apa yang berubah", "masih berlaku") search every version up to the date.
-4. **Answer and cite.** A local model (`qwen3.5:4b` via Ollama) answers from the retrieved versions and cites their source IDs; titles tell it when each version applied.
-5. **Calculate in code.** Severance and PKWT compensation come from `src/pasalkini/tools/pesangon.py`, whose rules are versioned by date and cite their articles; the model explains the numbers but never computes them.
+3. **Understand, then retrieve by date.** Code reads the date: from the question ("Maret 2019", "2 tahun lalu"), else the date picker, else today. A local model (`qwen3.5:4b` via Ollama) sorts the question into explain, status, history, calculation or out of scope. Only versions that applied on the date are searched (dense + BM25), so an answer about 2019 cannot quote a 2021 regulation. Status and history questions see every version up to the date. Articles the question names ("Pasal 59 UU 13/2003") are looked up directly.
+4. **Answer, then check in code.** The model answers in JSON and gives a word-for-word quote for each citation. Code checks every citation: the source was in the context, the quote is in its text, and it applied on the date. A failed check gets one repair. Only verified citations are shown, and if none is left the answer abstains. An answer about a past date says which cited articles changed later.
+5. **Calculate in code.** Severance and PKWT compensation come from `src/pasalkini/tools/pesangon.py`, whose rules are versioned by date and cite their articles. The model only reads the facts from the question; it explains the numbers but never computes them.
+6. **Refuse what is out of scope.** Questions outside labor law, or requests to act as the user's lawyer or promise an outcome, get a refusal and a referral.
 
 ## Quick start
 
@@ -34,7 +35,7 @@ uv run pasalkini download      # official PDFs, politely (about 180 MB)
 uv run pasalkini parse         # PDFs to articles, amendment points and MK rulings
 uv run pasalkini build         # events and article versions with their validity dates
 uv run pasalkini ask "Berapa jam maksimal lembur dalam sehari?" --date 2019-06-01
-uv run pasalkini eval temporal # the evaluation set, with a summary in evals/runs/
+uv run pasalkini eval pasalkini   # the evaluation set, with a summary in evals/runs/
 uv run pytest
 ```
 
@@ -44,7 +45,8 @@ Other commands:
 |---|---|
 | `pasalkini law uu-13-2003 --date 2021-06-01 --pasal 78 79` | Articles as they stood on a date |
 | `pasalkini history uu-13-2003/pasal-64 --diff` | Every version of one article, with word-level changes |
-| `pasalkini eval baseline` / `versions` / `temporal` | The pipelines compared in the results |
+| `pasalkini eval baseline` / `versions` / `temporal` / `pasalkini` | The pipelines compared in the results; `--retrieval-only` skips the answers |
+| `pasalkini compare <run> <run> --split dev` | Runs side by side |
 | `pasalkini rescore` | Recompute the latest run after answer keys change |
 | `pasalkini spotcheck` | 30 random parsed articles to compare with the PDFs |
 

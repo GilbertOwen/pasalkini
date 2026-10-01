@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field, create_model
+from pydantic import BaseModel, create_model
 
 from pasalkini.answer.llm import ChatOptions
 from pasalkini.answer.understand import Chat
@@ -94,13 +94,15 @@ def months_before(day: date, months: int) -> date:
 
 
 def facts_schema(reasons: list[str]) -> type[BaseModel]:
+    """Plain integers, with no ranges in the schema: range keywords are not supported by every
+    JSON-grammar backend. calculate() checks the values instead."""
     reason_type = Literal[tuple(reasons)] if reasons else str
     return create_model(
         "FaktaHitungan",
         jenis=(Literal["pesangon", "kompensasi_pkwt"], ...),
-        lama_tahun=(int, Field(ge=0, le=60)),
-        lama_bulan=(int, Field(ge=0, le=720)),
-        upah_bulanan=(int, Field(ge=0)),
+        lama_tahun=(int, ...),
+        lama_bulan=(int, ...),
+        upah_bulanan=(int, ...),
         alasan=(reason_type | None, None),
     )
 
@@ -127,8 +129,8 @@ def calculate(question: str, end: date, chat: Chat, options: ChatOptions) -> Cal
     missing = [
         what
         for what, absent in [
-            ("upah sebulan", not calculation.wage),
-            ("lama bekerja atau lama kontrak", not calculation.months),
+            ("upah sebulan", calculation.wage <= 0),
+            ("lama bekerja atau lama kontrak", not 0 < calculation.months <= 720),
             ("alasan PHK", facts.jenis == "pesangon" and not facts.alasan and reasons),
         ]
         if absent

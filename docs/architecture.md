@@ -18,13 +18,20 @@ sources/events-review.csv (human verdicts) ────────────�
                                                                 insert, delete,     valid_from/to and
                                                                 interpret, revoke)  status)
 
-ONLINE (per question)
+ONLINE (per question, answer/pipeline.py)
 
-question (+ date) ─► date: picker, or read from the question, or today
-                 ─► history question? ('berubah', 'masih berlaku')
-                 ─► search version chunks that applied on the date (all versions up to it for history)
-                 ─► qwen3.5:4b answers in JSON, citing source IDs        [Phase 5: verify quotes, retry, abstain]
-                 ─► severance / PKWT compensation computed in code (tools/pesangon.py)
+question (+ date) ─► date: read from the question, else the date picker, else today          rules
+                 ─► kind: explain | status | history | calculate | out of scope             qwen3.5:4b, JSON
+                 ─► out of scope ─► refusal and referral (no search)
+                 ─► calculate ─► the model reads the facts; tools/pesangon.py computes
+                 ─► context: articles the question names, the calculator's articles, then
+                    dense + BM25 search over the versions that applied on the date
+                    (every version up to it for status and history questions)
+                 ─► qwen3.5:4b answers in JSON with a word-for-word quote per citation
+                 ─► code checks each citation: in the context, quote in its text, applied on the date
+                    ─► fails: one repair with the problems listed
+                    ─► shows verified citations only; none left: abstains
+                 ─► notes on cited articles that changed after the date
 ```
 
 ## Key ideas
@@ -38,6 +45,8 @@ question (+ date) ─► date: picker, or read from the question, or today
 | Revocation restores replaced wording | `temporal/build.py` | Perppu 2/2022 revoked UU 11/2020 (Pasal 185) while restating its amendments |
 | Filter by date before ranking | `retrieve/temporal.py` | A version that did not apply cannot be retrieved, so it cannot be cited |
 | Arithmetic in code | `tools/pesangon.py` | Exact, testable, and each rule names its article |
+| Code checks every citation | `answer/verify.py` | A small model misquotes and cites stale text; a check it cannot talk its way past catches both |
+| A fixed pipeline, not an agent | `answer/pipeline.py` | A 4B model follows a fixed flow more reliably; an agent loop has to beat it on the evals first |
 
 ## Checks that keep it honest
 
