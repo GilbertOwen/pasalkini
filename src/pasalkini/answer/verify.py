@@ -208,28 +208,97 @@ def find_spans(quote: str, text: str) -> list[tuple[int, int]] | None:
         # Words carry no punctuation, so '(1) Perusahaan' would be cut to '1) Perusahaan'. Take
         # a bracket or quotation mark at either end when that balances the piece.
         piece = text[start:end]
-        if start > 0 and text[start - 1] == "(" and piece.count(")") > piece.count("("):
-            start -= 1
-        if end < len(text) and text[end] == ")" and piece.count("(") > piece.count(")"):
-            end += 1
+        for opening, closing in ("()", "[]"):
+            if start > 0 and text[start - 1] == opening:
+                if piece.count(closing) > piece.count(opening):
+                    start -= 1
+            if end < len(text) and text[end] == closing:
+                if piece.count(opening) > piece.count(closing):
+                    end += 1
         if 0 < start and end < len(text) and text[start - 1] in '“"' and text[end] in '”"':
             start, end = start - 1, end + 1
         ranges.append((start, end))
     return ranges
 
 
-def _shown(text: str, spans: list[tuple[int, int]]) -> str:
+def shown(text: str, spans: list[tuple[int, int]]) -> str:
+    """The text at the ranges, on one line, with '…' between ranges."""
     return " … ".join(" ".join(text[start:end].split()) for start, end in spans)
 
 
 def locate(quote: str, text: str) -> str | None:
     """The source's own words for the quote, or None when the quote is not there."""
     spans = find_spans(quote, text)
-    return None if spans is None else _shown(text, spans)
+    return None if spans is None else shown(text, spans)
 
 
 def quote_in(quote: str, text: str) -> bool:
     return find_spans(quote, text) is not None
+
+
+class _Layout:
+    """An article's text as lines: where each starts, the ayat it belongs to, the line that
+    opens that ayat, and the letter of a list item ('b' for 'b. istirahat mingguan …')."""
+
+    def __init__(self, body: str) -> None:
+        self.lines = body.split("\n")
+        self.starts: list[int] = []
+        self.ayat: list[str | None] = []
+        self.opener: list[int | None] = []
+        position, current, current_line = 0, None, None
+        for i, line in enumerate(self.lines):
+            self.starts.append(position)
+            position += len(line) + 1
+            match = AYAT.match(line)
+            if match:
+                current, current_line = match.group(1), i
+            self.ayat.append(current)
+            self.opener.append(current_line)
+
+    def item(self, i: int) -> str | None:
+        match = ITEM.match(self.lines[i])
+        return match.group(1) if match else None
+
+    def touched(self, spans: list[tuple[int, int]]) -> list[int]:
+        """The lines the character ranges touch."""
+
+        def line_at(offset: int) -> int:
+            return max(i for i, start in enumerate(self.starts) if start <= offset)
+
+        found: set[int] = set()
+        for start, end in spans:
+            found.update(range(line_at(start), line_at(max(start, end - 1)) + 1))
+        return sorted(found)
+
+    def span(self, i: int) -> tuple[int, int]:
+        return self.starts[i], self.starts[i] + len(self.lines[i])
+
+
+def places(body: str, spans: list[tuple[int, int]]) -> list[tuple[str | None, str | None]]:
+    """Where the spans are in the article: the (ayat, item letter) of each line they touch."""
+    layout = _Layout(body)
+    return [(layout.ayat[i], layout.item(i)) for i in layout.touched(spans)]
+
+
+def same_places(body: str, wanted: list[tuple[str | None, str | None]]) -> list[tuple[int, int]]:
+    """The same ayat and items in another wording of the article, as character ranges: the item
+    when that wording has it, otherwise the line that opens the ayat. Empty when the wording
+    has none of them."""
+    layout = _Layout(body)
+    found: list[int] = []
+    for ayat, letter in wanted:
+        in_ayat = [i for i, a in enumerate(layout.ayat) if a == ayat]
+        items = [i for i in in_ayat if letter and layout.item(i) == letter]
+        if items:
+            found.append(items[0])
+        elif ayat is not None and in_ayat:
+            found.append(in_ayat[0])
+    return [layout.span(i) for i in sorted(set(found))]
+
+
+def opening(body: str) -> list[tuple[int, int]]:
+    """The article's first line, as a character range."""
+    return [(0, len(body.split("\n", 1)[0]))]
 
 
 def expand(body: str, spans: list[tuple[int, int]]) -> tuple[str, set[str]]:
@@ -239,28 +308,9 @@ def expand(body: str, spans: list[tuple[int, int]]) -> tuple[str, set[str]]:
     - other lines of the article that refer back to what was quoted ('… sebagaimana dimaksud
       dalam ayat (2) huruf d hanya berlaku bagi …'), at most MAX_BACK_REFERENCES of them.
     Returns the text and the ayat of the quoted lines."""
-    lines = body.split("\n")
-    starts, position = [], 0
-    for line in lines:
-        starts.append(position)
-        position += len(line) + 1
-    ayat_of: list[str | None] = []
-    opener: list[int | None] = []
-    current, current_line = None, None
-    for i, line in enumerate(lines):
-        match = AYAT.match(line)
-        if match:
-            current, current_line = match.group(1), i
-        ayat_of.append(current)
-        opener.append(current_line)
-
-    def line_at(offset: int) -> int:
-        return max(i for i, start in enumerate(starts) if start <= offset)
-
-    quoted: list[int] = []
-    for start, end in spans:
-        quoted += range(line_at(start), line_at(max(start, end - 1)) + 1)
-    quoted = sorted(set(quoted))
+    layout = _Layout(body)
+    lines, ayat_of, opener = layout.lines, layout.ayat, layout.opener
+    quoted = layout.touched(spans)
     keep = set(quoted) | {opener[i] for i in quoted if opener[i] is not None}
     for i in quoted:
         if lines[i].rstrip().endswith(":"):
@@ -275,11 +325,10 @@ def expand(body: str, spans: list[tuple[int, int]]) -> tuple[str, set[str]]:
     for i in quoted:
         if ayat_of[i] is None:
             continue
-        item = ITEM.match(lines[i])
         about = rf"ayat \({ayat_of[i]}\)"
         wanted.append(about + r"(?!,? huruf)")  # the ayat as a whole
-        if item:
-            wanted.append(about + rf",? huruf {item.group(1)}\b")
+        if layout.item(i):
+            wanted.append(about + rf",? huruf {layout.item(i)}\b")
     references = 0
     for j, line in enumerate(lines):
         if j in keep or references == MAX_BACK_REFERENCES:
@@ -342,7 +391,7 @@ def check_citation(
             for start, end in spans
             if offset <= start < offset + len(body)
         ]
-        return Passage(chunk, _shown(whole, spans), in_body), None
+        return Passage(chunk, shown(whole, spans), in_body), None
     if stale:
         return None, f"[{source_id}] tidak berlaku pada {as_of.isoformat()}."
     if not named:

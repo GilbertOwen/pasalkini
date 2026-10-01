@@ -180,6 +180,7 @@ def evaluate_with_pipeline(
     result.rewritten = outcome.rewritten if outcome.drafts else None
     result.answer_problems = outcome.answer_problems
     result.ungrounded = outcome.ungrounded
+    result.later_sources = [passage.source_id for passage in outcome.later]
     if isinstance(pipeline, Agent):
         result.agent_steps = outcome.steps
     result.calculation = outcome.calculation.text() if outcome.calculation else None

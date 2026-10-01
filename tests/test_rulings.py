@@ -1,6 +1,13 @@
 """Constitutional Court ruling points: shorter citations, and what the fixed formulas mean."""
 
-from pasalkini.temporal.rulings import abbreviate, ayat_of, meaning_of, reading
+from pasalkini.temporal.rulings import (
+    abbreviate,
+    ayat_of,
+    meaning_of,
+    reading,
+    struck,
+    without,
+)
 
 LAW = (
     "Undang-Undang Nomor 6 Tahun 2023 tentang Penetapan Peraturan Pemerintah Pengganti "
@@ -96,3 +103,12 @@ def test_a_sentence_outside_the_formulas_is_shortened_but_not_interpreted():
     assert reading("Menolak permohonan para Pemohon untuk selain dan selebihnya.", court) == (
         f"{court}: Menolak permohonan para Pemohon untuk selain dan selebihnya."
     )
+
+
+def test_only_a_ruling_that_strikes_words_is_written_into_the_text():
+    assert struck(WORD_STRUCK) == ("5", "dapat")
+    assert struck(MINIMUM) is None and struck(WEEKLY_REST) is None  # the Court set a reading
+    line = "(5) Perusahaan tertentu dapat memberikan istirahat panjang."
+    assert without(line, "dapat") == "(5) Perusahaan tertentu memberikan istirahat panjang."
+    assert without("dapat diberikan dan dapat dicabut", "dapat") is None  # which of the two?
+    assert without("pendapatan pekerja", "dapat") is None  # inside another word

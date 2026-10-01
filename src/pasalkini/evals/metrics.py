@@ -100,6 +100,7 @@ class ItemResult(BaseModel):
     rewritten: bool | None = None
     answer_problems: list[str] = []  # what the first answer mentioned that it was not given
     ungrounded: list[str] = []  # ... and what the shown answer still does
+    later_sources: list[str] = []  # law that began after the date, shown as such and not cited
     agent_steps: list[str] | None = None  # agent only: the tools it used, in order
     calculation: str | None = None
 

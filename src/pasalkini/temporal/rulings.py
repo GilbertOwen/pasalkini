@@ -50,6 +50,10 @@ FORMULA = re.compile(
 # amended wording was published, which the reader of that wording already knows.
 PUBLISHED_IN = re.compile(r",? dalam Pasal 81 angka \d+ Lampiran UU 6/2023")
 AYAT_OF = re.compile(r"Pasal \d+[A-Z]? ayat \((\d+)\)")
+STRUCK = re.compile(
+    r"^(?:kata|frasa) [“\"](?P<words>[^”\"]+)[”\"],? dalam (?:norma )?"
+    r"Pasal \d+[A-Z]? ayat \((?P<ayat>\d+)\)$"
+)
 
 
 def abbreviate(text: str) -> str:
@@ -90,3 +94,22 @@ def reading(text: str, court: str) -> str:
     if subject.startswith(("kata ", "frasa ")):
         sentence += ": baca ketentuan itu tanpa kata-kata tersebut"
     return sentence + "."
+
+
+def struck(text: str) -> tuple[str, str] | None:
+    """For a ruling point that strikes words from an ayat and puts nothing in their place:
+    (the ayat, the words). None for every other ruling: a reading the Court sets cannot be
+    written into the text by a rule."""
+    match = FORMULA.match(abbreviate(" ".join(text.split())))
+    if match is None or match["meaning"]:
+        return None
+    found = STRUCK.match(PUBLISHED_IN.sub("", match["subject"]).strip())
+    return (found["ayat"], found["words"]) if found else None
+
+
+def without(line: str, words: str) -> str | None:
+    """The line with the struck words taken out, when it has them exactly once."""
+    pattern = rf"(?<!\w){re.escape(words)}(?!\w)"
+    if len(re.findall(pattern, line)) != 1:
+        return None
+    return re.sub(r"\s{2,}", " ", re.sub(pattern, "", line))

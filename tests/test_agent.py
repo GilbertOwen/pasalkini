@@ -36,7 +36,7 @@ class Script:
         if schema is Action:
             parsed = self.actions.pop(0)
         elif schema is Selection:
-            parsed = self.selections.pop(0)
+            parsed = self.selections.pop(0) if self.selections else picks()
         elif schema is Answer:
             parsed = self.answers.pop(0) if self.answers else says(SAID)
         else:
@@ -118,7 +118,6 @@ def test_the_calculator_tool_brings_its_articles_into_the_context():
     chat = Script(
         [Action(aksi="hitung"), Action(aksi="jawab")],
         [picks((COMPENSATION.source_id, "uang kompensasi diberikan dengan ketentuan"))],
-        [says("Dasarnya ketentuan tentang uang kompensasi.")],
         facts={"jenis": "kompensasi_pkwt", "lama_tahun": 0, "lama_bulan": 6, "upah_bulanan": 0},
     )
     question = "Kontrak PKWT saya 6 bulan dengan upah Rp4.000.000 berakhir. Berapa kompensasinya?"

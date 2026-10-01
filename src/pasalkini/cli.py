@@ -169,6 +169,31 @@ def cmd_rescore(args: argparse.Namespace) -> None:
     print((run_dir / "summary.md").read_text(encoding="utf-8"))
 
 
+def cmd_judge(args: argparse.Namespace) -> None:
+    from pasalkini.evals.judge import judge_run, read_grades, totals
+    from pasalkini.evals.runner import RUNS_DIR
+
+    path = judge_run(RUNS_DIR / args.run, split=args.split)
+    print(
+        f"Judge's grades saved to {path.relative_to(path.parents[3])}: {totals(read_grades(path))}"
+    )
+
+
+def cmd_agreement(args: argparse.Namespace) -> None:
+    from pasalkini.evals.judge import agreement, read_grades, totals
+    from pasalkini.evals.runner import RUNS_DIR
+
+    for name in args.runs:
+        run_dir = RUNS_DIR / name
+        judged = {}
+        for path in sorted(run_dir.glob("judge*.csv")):
+            judged.update(read_grades(path))
+        for path in sorted(run_dir.glob("grades-*.csv")):
+            reference = read_grades(path)
+            print(f"\n{name}: {path.name} ({totals(reference)}) against the judge")
+            print("\n".join(agreement(reference, judged)))
+
+
 def cmd_ask(args: argparse.Namespace) -> None:
     from datetime import date
 
@@ -259,7 +284,9 @@ def ask_pipeline(args: argparse.Namespace, config, chunks, index, lexical) -> No
     if outcome.steps:
         print("Langkah agen: " + ", ".join(outcome.steps))
     if outcome.retried:
-        print("Diperbaiki sekali setelah pemeriksaan: " + "; ".join(outcome.first_problems))
+        print("Kutipan dipilih ulang setelah pemeriksaan: " + "; ".join(outcome.first_problems))
+    if outcome.rewritten:
+        print("Jawaban ditulis ulang setelah pemeriksaan: " + "; ".join(outcome.answer_problems))
     print(", ".join(f"{step} {seconds:.1f} s" for step, seconds in outcome.seconds.items()))
 
 
@@ -315,6 +342,13 @@ def main() -> None:
     rescore = sub.add_parser("rescore", help="recompute a saved run against the current keys")
     rescore.add_argument("run", nargs="?", help="run folder name (default: the latest)")
 
+    judge = sub.add_parser("judge", help="grade a saved run's answers with the local model")
+    judge.add_argument("run", help="run folder name under evals/runs")
+    judge.add_argument("--split", choices=["dev", "test"], help="only this split")
+
+    agree = sub.add_parser("agreement", help="compare the judge with grades given by reading")
+    agree.add_argument("runs", nargs="+", help="run folder names under evals/runs")
+
     ask = sub.add_parser("ask", help="ask one question")
     ask.add_argument("question")
     ask.add_argument("--date", help="the date that decides which law applies (YYYY-MM-DD)")
@@ -328,6 +362,8 @@ def main() -> None:
         "index": cmd_index,
         "eval": cmd_eval,
         "rescore": cmd_rescore,
+        "judge": cmd_judge,
+        "agreement": cmd_agreement,
         "funnel": cmd_funnel,
         "compare": cmd_compare,
         "build": cmd_build,

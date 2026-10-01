@@ -18,7 +18,7 @@ from datetime import date, timedelta
 from pasalkini.corpus import Chunk
 from pasalkini.temporal.corpus import NOTES_HEADING, DatedChunk
 from pasalkini.temporal.query import format_date
-from pasalkini.temporal.rulings import ayat_of, meaning_of, reading
+from pasalkini.temporal.rulings import ayat_of, meaning_of, reading, struck, without
 
 MAX_CONTEXT = 7  # about 5,000 prompt tokens at 2,500 characters a chunk
 STATUS_WORDS = {"in_force": "berlaku", "conditional": "bersyarat", "repealed": "dihapus"}
@@ -348,6 +348,28 @@ def rulings_read(library: Library, chunk: Chunk, ayat: set[str]) -> list[str]:
             meanings.add(meaning)
         found.append(reading(full, instrument_label(note_id)))
     return found
+
+
+def as_ruled(library: Library, chunk: Chunk, text: str) -> str:
+    """The quoted lines as they read after a ruling that strikes words from them, with a mark
+    saying so. Told only beside the text that 'dapat' no longer applies, the model went on
+    reading 'dapat memberikan' as optional. Rulings that set a reading are not written into the
+    text: they are read out beside it (rulings_read)."""
+    lines = text.split("\n")
+    for note_id, note in notes_of(chunk):
+        if "/amar-" not in note_id:
+            continue
+        ruling = library.by_source.get(note_id)
+        target = struck(ruling[0].text if ruling else note)
+        if target is None:
+            continue
+        ayat, words = target
+        for i, line in enumerate(lines):
+            changed = without(line, words) if line.startswith(f"({ayat})") else None
+            if changed:
+                by = instrument_label(note_id)
+                lines[i] = f"{changed} [kata “{words}” dihapus oleh {by}]"
+    return "\n".join(lines)
 
 
 def standing_notes(chunk: Chunk) -> list[str]:
