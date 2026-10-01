@@ -6,7 +6,8 @@ Only `ask` needs the language model. The other four read the temporal model or t
 rules, and keep working when Ollama is not running.
 
 `ask` is where the app's own rules live, around the pipeline:
-- the question is redacted before anything about it is kept (log, trace);
+- personal data is taken out of the question on the way in, before the search, the model, the
+  log or the trace see it;
 - an answer already given for the same question, date, law and code comes from the cache, unless
   personal data was found in the question;
 - one question is answered at a time: there is one GPU;
@@ -284,11 +285,14 @@ class Service:
             raise ValueError(
                 f"Pertanyaan terlalu panjang (paling banyak {MAX_QUESTION_CHARS} huruf)."
             )
+        # From here on only the redacted question exists: for the search, the model, the log and
+        # the trace. A name and a phone number in front of a question are noise to the search.
         redacted = redact(question)
+        question = redacted.text
         today = self.today()
         as_of, source = decide_date(question, date_hint, today)
         entry = {
-            "question": redacted.text,
+            "question": question,
             "personal_data": redacted.found,
             "date_picker": date_hint.isoformat() if date_hint else None,
             "as_of": as_of.isoformat(),

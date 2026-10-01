@@ -118,10 +118,13 @@ def test_a_question_with_personal_data_is_not_cached_and_is_logged_redacted(tmp_
     second = service.ask(question, IN_2019)
     assert not first["cached"] and not second["cached"] and len(chat.calls) == 2 * calls
     assert len(service.cache) == 0
-    # The pipeline still read the question as it was asked.
-    assert question in chat.named("Selection")[0][-1]["content"]
+    # The model and the search get the redacted question too: nothing downstream sees the rest.
+    redacted = "Nama saya [NAMA], HP [TELEPON]. Berapa jam lembur maksimal?"
+    assert f"PERTANYAAN: {redacted}" in chat.named("Selection")[0][-1]["content"]
+    sent = str(chat.calls)
+    assert "Budi" not in sent and "081234567890" not in sent
     entry = logged(service)[0]
-    assert entry["question"] == "Nama saya [NAMA], HP [TELEPON]. Berapa jam lembur maksimal?"
+    assert entry["question"] == redacted
     assert entry["personal_data"] == {"nama": 1, "telepon": 1}
     kept = "".join(path.read_text(encoding="utf-8") for path in service.log.directory.iterdir())
     assert "Budi" not in kept and "081234567890" not in kept

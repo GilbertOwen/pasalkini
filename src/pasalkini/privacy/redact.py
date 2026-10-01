@@ -1,5 +1,5 @@
-"""Take personal data out of a text before it is written anywhere: the question log, traces, the
-answer cache.
+"""Take personal data out of a question on its way in: before the search, the model, the question
+log and the traces see it.
 
 Each find is replaced by a placeholder that says what was there:
 
@@ -10,9 +10,11 @@ Each find is replaced by a placeholder that says what was there:
 - Indonesian phone numbers: mobile (+62 8…, 08…) and landline with an area code → [TELEPON]
 - a name after 'nama saya', 'saya bernama' or 'atas nama', when it is capitalised → [NAMA]
 
-The answer pipeline always reads the question as it was asked. Only the copies that are kept go
-through here, so a false find costs a little detail in a log and nothing in the answer. Amounts
-of money, dates and article numbers must still survive: they are what a question is about.
+Personal details are noise to the search as well as a risk in a log: a question that opened with a
+name and a phone number retrieved the wrong article, and the same question without them the right
+one. So the pipeline reads the redacted question too. That makes a false find costly: amounts of
+money, dates and article numbers are what a question is about and must survive. The tests hold
+the patterns to that, on examples and on every question of the evaluation set.
 
 Not found: names written in lower case or without one of the cues above, addresses, account
 numbers shorter than 15 digits. The app asks users not to enter personal data at all.

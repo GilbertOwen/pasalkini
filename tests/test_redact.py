@@ -2,6 +2,7 @@
 
 import pytest
 
+from pasalkini.evals.schema import load_golden
 from pasalkini.privacy.redact import redact
 
 
@@ -58,6 +59,13 @@ def test_amounts_dates_and_article_numbers_survive(text):
     redacted = redact(text)
     assert redacted.text == text
     assert redacted.clean and redacted.found == {}
+
+
+def test_no_evaluation_question_is_changed():
+    """The pipeline reads the redacted question, so the evaluation numbers hold for the app only
+    if redaction leaves those questions alone."""
+    changed = [item.id for item in load_golden() if not redact(item.question).clean]
+    assert changed == []
 
 
 def test_every_find_is_counted():
