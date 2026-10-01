@@ -2,8 +2,8 @@
 
 A citation passes when:
 - its source ID is one of the chunks the model was given;
-- the quote appears in that chunk's text (ignoring case, whitespace and quotation marks; a quote
-  shortened with '…' passes when each part appears, in order);
+- the quote appears in that chunk's title or text (ignoring case, whitespace, quotation marks
+  and bracket style; a quote shortened with '…' passes when each part appears, in order);
 - unless the question is about history, the chunk applied on the question's date.
 An answer that does not abstain must cite at least one source.
 """
@@ -53,6 +53,7 @@ class Verification:
 
 def _normalise(text: str) -> str:
     text = re.sub(r"[\"'“”‘’]", "", text.lower())
+    text = text.replace("[", "(").replace("]", ")")  # the prompt shows notes' [ids] as (ids)
     return re.sub(r"\s+", " ", text).strip()
 
 
@@ -83,7 +84,8 @@ def check_citation(
     candidates = [c for c in context if c.source_id == source_id]
     if not candidates:
         return f"[{source_id}] tidak ada di KONTEKS."
-    quoted = [c for c in candidates if quote_in(citation.quote, c.text)]
+    # The title counts: for a status question the evidence is the validity it states.
+    quoted = [c for c in candidates if quote_in(citation.quote, c.title + "\n" + c.text)]
     if not quoted:
         return f"[{source_id}] kutipan tidak ditemukan persis di teks sumbernya."
     if as_of is not None and not history:

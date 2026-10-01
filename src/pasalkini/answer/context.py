@@ -3,10 +3,13 @@
 - Articles the question names come first: the version that applied on the date, or for status
   and history questions every version up to it, with the MK rulings attached to them.
 - Then the articles the calculator used, then the search results.
-- For status and history questions, consecutive periods of the same wording (split only by a
-  status change, such as a conditional ruling) are shown as one chunk over the whole span.
+- Consecutive periods of the same wording (split only by a status change, such as a conditional
+  ruling) are shown as one chunk over the whole span.
+- For status and history questions about a named article, code states the article's timeline
+  from the temporal model (history_of); the model explains it.
 """
 
+import re
 from collections import defaultdict
 from datetime import date, timedelta
 
@@ -30,9 +33,16 @@ def label(chunk: DatedChunk) -> str:
 
 
 class Library:
-    """The dated corpus, indexed for lookups by article and by source ID."""
+    """The dated corpus, indexed for lookups by article and by source ID.
 
-    def __init__(self, chunks: list[DatedChunk]) -> None:
+    `enacted` maps an instrument to the law that later enacted it unchanged and the date
+    that law took effect: {'perppu-2-2022': ('uu-6-2023', date(2023, 3, 31))}.
+    """
+
+    def __init__(
+        self, chunks: list[DatedChunk], enacted: dict[str, tuple[str, date]] | None = None
+    ) -> None:
+        self.enacted = enacted or {}
         self.by_provision: dict[str, list[DatedChunk]] = defaultdict(list)
         self.by_source: dict[str, list[DatedChunk]] = defaultdict(list)
         for chunk in sorted(chunks, key=lambda c: c.valid_from):
@@ -62,6 +72,15 @@ class Library:
             return None
         mine = self.by_provision.get(chunk.provision_id, [])
         return next((c for c in mine if c.valid_from == chunk.valid_to), None)
+
+    def instrument(self, source_id: str, as_of: date) -> str:
+        """'UU 11/2020'; 'Perppu 2/2022 (ditetapkan menjadi UU 6/2023)' once that law was
+        in force on the date."""
+        head = source_id.split("/")[0]
+        name = instrument_label(head)
+        if head in self.enacted and self.enacted[head][1] <= as_of:
+            name += f" (ditetapkan menjadi {instrument_label(self.enacted[head][0])})"
+        return name
 
     def periods(self, chunk: DatedChunk, as_of: date) -> list[DatedChunk]:
         """The unbroken run of periods of this chunk's wording that contains it, up to the date.
@@ -129,11 +148,96 @@ def gather(
         if chunk is not None:
             first.append(chunk)
 
-    chosen: dict[tuple[str, str], DatedChunk] = {}
-    for chunk in first + [h for h in hits if isinstance(h, DatedChunk)]:
-        chosen.setdefault(key(chunk), chunk)
-    limit = min(MAX_CONTEXT, top_k + len({key(c) for c in first}))
-    picked = list(chosen.values())[:limit]
-    if history:
-        picked = [merge_periods(library.periods(c, as_of)) for c in picked]
-    return picked
+    # Each wording once, titled with its whole span: a version's own period can start at a
+    # status change ('berlaku sejak 30 Desember 2022; bersyarat'), which reads as if the
+    # regulation itself began that day.
+    chosen: dict[tuple, DatedChunk] = {}
+
+    def add(chunk: DatedChunk) -> None:
+        run = library.periods(chunk, as_of)
+        chosen.setdefault((key(chunk), run[0].valid_from), merge_periods(run))
+
+    for chunk in first:
+        add(chunk)
+    limit = min(MAX_CONTEXT, top_k + len(chosen))
+    for chunk in hits:
+        if isinstance(chunk, DatedChunk):
+            add(chunk)
+    return list(chosen.values())[:limit]
+
+
+KIND_WORDS = {"uu": "UU", "pp": "PP", "perppu": "Perppu", "permenaker": "Permenaker"}
+
+
+def instrument_label(source_id: str) -> str:
+    """'UU 11/2020' from 'uu-11-2020/pasal-81/angka-15'; 'Putusan MK 168/PUU-XXI/2023'."""
+    head = source_id.split("/")[0]
+    match = re.fullmatch(r"([a-z]+)-(\d+)-(\d{4})", head)
+    if match and match.group(1) in KIND_WORDS:
+        return f"{KIND_WORDS[match.group(1)]} {match.group(2)}/{match.group(3)}"
+    match = re.fullmatch(r"mk-(\d+)-puu-([a-z]+)-(\d{4})", head)
+    if match:
+        return f"Putusan MK {match.group(1)}/PUU-{match.group(2).upper()}/{match.group(3)}"
+    return head
+
+
+def is_original(chunk: DatedChunk) -> bool:
+    """The wording was published by the article's own instrument, not by an amendment."""
+    return chunk.source_id.split("/")[0] == chunk.provision_id.split("/")[0]
+
+
+def timeline_line(library: Library, run: list[DatedChunk], as_of: date) -> str:
+    first, last = run[0], run[-1]
+    start = format_date(first.valid_from)
+    if last.valid_to is None:
+        span = f"sejak {start}"
+    else:
+        span = f"{start} s.d. {format_date(last.valid_to - timedelta(days=1))}"
+    if first.status == "repealed":
+        what = f"dihapus oleh {library.instrument(first.source_id, as_of)}"
+    elif is_original(first):
+        what = "bunyi asli"
+    else:
+        what = f"bunyi dari {library.instrument(first.source_id, as_of)}"
+    line = f"- {span}: {what} [{first.source_id}]"
+    if first.status == "conditional":
+        line += "; bersyarat"
+    for previous, c in zip(run, run[1:], strict=False):
+        if c.status != previous.status:
+            new = [r for r in c.rulings if r not in previous.rulings]
+            by = ", ".join(dict.fromkeys(instrument_label(r) for r in new))
+            line += f"; {STATUS_WORDS[c.status]} sejak {format_date(c.valid_from)}"
+            line += f" ({by})" if by else ""
+    return line
+
+
+def history_of(library: Library, provision_id: str, as_of: date) -> str | None:
+    """The article's timeline up to the date and its status on it, stated by code from the
+    temporal model. None when the article is not in the model."""
+    runs: dict[tuple, list[DatedChunk]] = {}
+    for chunk in library.versions(provision_id, as_of, history=True):
+        run = library.periods(chunk, as_of)
+        runs.setdefault((key(chunk), run[0].valid_from), run)
+    if not runs:
+        return None
+    name = label(next(iter(runs.values()))[0])
+    lines = [f"Riwayat {name}:"]
+    lines += [timeline_line(library, run, as_of) for run in runs.values()]
+    current = library.versions(provision_id, as_of, history=False)
+    day = format_date(as_of)
+    if not current:
+        lines.append(f"Pada {day}: tidak ada versi yang berlaku.")
+    elif current[0].status == "repealed":
+        by = library.instrument(current[0].source_id, as_of)
+        lines.append(f"Pada {day}: sudah dihapus oleh {by} [{current[0].source_id}].")
+    else:
+        now = current[0]
+        how = "berlaku bersyarat" if now.status == "conditional" else "berlaku"
+        if is_original(now):
+            lines.append(f"Pada {day}: {how} dengan bunyi aslinya [{now.source_id}].")
+        else:
+            by = library.instrument(now.source_id, as_of)
+            lines.append(
+                f"Pada {day}: {how} dengan bunyi dari {by} [{now.source_id}], bukan bunyi aslinya."
+            )
+    return "\n".join(lines)

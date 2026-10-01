@@ -3,7 +3,6 @@ from datetime import date
 from pasalkini.answer.calculate import months_before, wages_in
 from pasalkini.answer.llm import ChatOptions, Reply
 from pasalkini.answer.understand import (
-    Classification,
     decide_date,
     named_provisions,
     relative_date,
@@ -45,18 +44,6 @@ def test_invalid_model_output_falls_back_to_rules():
 
     u = understand("Apakah Pasal 64 masih berlaku?", None, TODAY, broken, ChatOptions("m"))
     assert (u.intent, u.method, u.history) == ("status", "rules", True)
-
-
-def test_referral_is_kept_only_for_out_of_scope():
-    def says(intent: str):
-        def chat(options, messages, schema):
-            parsed = Classification(intent=intent, rujukan="LBH")
-            return Reply(parsed, parsed.model_dump_json(), 0, 0, 0.0)
-
-        return chat
-
-    assert understand("x" * 12, None, TODAY, says("di_luar_cakupan"), ChatOptions("m")).referral
-    assert understand("x" * 12, None, TODAY, says("jelaskan"), ChatOptions("m")).referral is None
 
 
 def test_wages_and_months():

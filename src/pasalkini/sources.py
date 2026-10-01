@@ -54,6 +54,9 @@ class Instrument(BaseModel):
     promulgated_on: date | None = None
     in_force_on: date | None = None
     dates_verified: bool = False
+    # The instrument this one enacted as law without changing its wording (UU 6/2023
+    # enacted Perppu 2/2022). People cite the enacting law, so answers name both.
+    enacts: str | None = None
     notes: str = ""
 
     @model_validator(mode="after")
@@ -87,6 +90,9 @@ class Manifest(BaseModel):
         duplicates = {i for i in ids if ids.count(i) > 1}
         if duplicates:
             raise ValueError(f"duplicate instrument ids: {sorted(duplicates)}")
+        unknown = {i.enacts for i in self.instruments if i.enacts} - set(ids)
+        if unknown:
+            raise ValueError(f"'enacts' names instruments not in the manifest: {sorted(unknown)}")
         return self
 
     def ids(self) -> set[str]:

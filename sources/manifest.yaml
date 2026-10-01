@@ -81,6 +81,7 @@ instruments:
     title: Penetapan Perppu Nomor 2 Tahun 2022 tentang Cipta Kerja menjadi Undang-Undang
     status: active
     parse_scope: Enacting article only; the text itself is parsed from perppu-2-2022
+    enacts: perppu-2-2022
     urls:
       bpk: https://peraturan.bpk.go.id/Details/246523/uu-no-6-tahun-2023
     pdf_url: https://peraturan.bpk.go.id/Download/302681/UU%20Nomor%206%20Tahun%202023.pdf

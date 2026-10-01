@@ -4,9 +4,14 @@ from datetime import date
 
 import numpy as np
 
-from pasalkini.answer.context import merge_periods
+from pasalkini.answer.context import Library, merge_periods
 from pasalkini.answer.llm import Reply
-from pasalkini.answer.pipeline import NO_VERIFIED_SOURCE, OUT_OF_SCOPE, Pipeline
+from pasalkini.answer.pipeline import (
+    NO_VERIFIED_SOURCE,
+    OUT_OF_SCOPE,
+    OUT_OF_SCOPE_REFERRAL,
+    Pipeline,
+)
 from pasalkini.answer.understand import Classification
 from pasalkini.answer.verify import Answer, Citation
 from pasalkini.pipelines import CONFIGS
@@ -71,7 +76,7 @@ class ScriptedChat:
     def __call__(self, options, messages, schema):
         self.calls.append((schema.__name__, messages))
         if schema is Classification:
-            parsed = Classification(intent=self.intent, rujukan="LBH")
+            parsed = Classification(intent=self.intent)
         elif schema is Answer:
             parsed = self.answers.pop(0)
         else:
@@ -124,7 +129,8 @@ def test_an_answer_without_a_verifiable_citation_abstains():
 def test_out_of_scope_is_refused_without_searching():
     chat = ScriptedChat(intent="di_luar_cakupan")
     outcome = run(chat, "Bagaimana pembagian harta gono-gini?")
-    assert outcome.abstained and outcome.answer == OUT_OF_SCOPE and outcome.referral == "LBH"
+    assert outcome.abstained and outcome.answer == OUT_OF_SCOPE
+    assert outcome.referral == OUT_OF_SCOPE_REFERRAL
     assert [name for name, _ in chat.calls] == ["Classification"]
 
 
@@ -145,6 +151,16 @@ def test_history_questions_see_each_wording_once_over_its_whole_span():
     merged = next(c for c in outcome.context if c.source_id == NEW.source_id)
     assert merged.valid_from == date(2020, 11, 2) and merged.status == "conditional"
     assert outcome.changed_since == []  # a history answer already covers the changes
+    # Code states the article's timeline and its status on the date.
+    assert outcome.timeline.splitlines() == [
+        "Riwayat UU 13/2003 Pasal 78:",
+        "- 25 Maret 2003 s.d. 1 November 2020: bunyi asli [uu-13-2003/pasal-78]",
+        "- sejak 2 November 2020: bunyi dari UU 11/2020 [uu-11-2020/pasal-81/angka-22]; "
+        "bersyarat sejak 25 November 2021",
+        "Pada 1 Oktober 2026: berlaku bersyarat dengan bunyi dari UU 11/2020 "
+        "[uu-11-2020/pasal-81/angka-22], bukan bunyi aslinya.",
+    ]
+    assert "RIWAYAT PASAL" in chat.calls[-1][1][-1]["content"]
 
 
 def test_merge_periods_names_the_status_change():
@@ -166,3 +182,14 @@ def test_the_calculator_supplies_the_amount_and_its_article():
     assert COMPENSATION.source_id in [c.source_id for c in outcome.context]
     prompt = chat.calls[-1][1][-1]["content"]
     assert "HASIL HITUNGAN" in prompt and "Rp2.000.000" in prompt
+
+
+def test_an_enacted_perppu_is_named_with_its_law_once_that_law_applied():
+    library = Library([], {"perppu-2-2022": ("uu-6-2023", date(2023, 3, 31))})
+    point = "perppu-2-2022/pasal-81/angka-15"
+    assert library.instrument(point, date(2023, 1, 15)) == "Perppu 2/2022"
+    assert library.instrument(point, date(2024, 1, 1)) == (
+        "Perppu 2/2022 (ditetapkan menjadi UU 6/2023)"
+    )
+    ruling = "mk-168-puu-xxi-2023/amar-7"
+    assert library.instrument(ruling, date(2025, 1, 1)) == "Putusan MK 168/PUU-XXI/2023"

@@ -92,3 +92,7 @@ def test_duplicate_synonym_rejected():
                 ]
             }
         )
+
+
+def test_uu_6_2023_is_linked_to_the_perppu_it_enacted(manifest):
+    assert manifest.get("uu-6-2023").enacts == "perppu-2-2022"
