@@ -34,9 +34,19 @@ def _normalise(vectors: np.ndarray) -> np.ndarray:
     return vectors / np.where(norms == 0, 1, norms)
 
 
-def embed_texts(model: str, texts: list[str], num_ctx: int, unload: bool = False) -> np.ndarray:
-    """Embed in batches. unload=True frees the model's memory after the last batch, so the chat
-    model has the GPU to itself (6 GB is not enough for both)."""
+def embed_texts(
+    model: str, texts: list[str], num_ctx: int, unload: bool = False, on_cpu: bool = False
+) -> np.ndarray:
+    """Embed in batches. 6 GB of GPU memory is not enough for the embedding and chat models
+    together, so there are two ways to keep them apart:
+
+    - unload=True frees the model after the last batch. For a batch of texts embedded before
+      any chat call (an evaluation run, indexing).
+    - on_cpu=True runs the model on the CPU, where it can stay loaded next to the chat model.
+      For one query at a time between chat calls: about 0.2 s, and the vectors match the GPU's
+      (cosine 0.999).
+    """
+    options = {"num_ctx": num_ctx, "num_gpu": 0} if on_cpu else {"num_ctx": num_ctx}
     vectors = []
     for start in range(0, len(texts), BATCH_SIZE):
         batch = texts[start : start + BATCH_SIZE]
@@ -45,7 +55,7 @@ def embed_texts(model: str, texts: list[str], num_ctx: int, unload: bool = False
             model=model,
             input=batch,
             truncate=True,
-            options={"num_ctx": num_ctx},
+            options=options,
             keep_alive=0 if unload and last else None,
         )
         vectors += response.embeddings
@@ -101,14 +111,21 @@ class DenseIndex:
         vectors, new = EmbeddingCache(model).vectors_for(texts, num_ctx)
         return cls(model, chunks, vectors, corpus_fingerprint(chunks), new)
 
-    def embed_query(self, text: str, instruction: bool, num_ctx: int = 4096) -> np.ndarray:
-        return self.embed_queries([text], instruction, num_ctx)[0]
+    def embed_query(
+        self, text: str, instruction: bool, num_ctx: int = 4096, on_cpu: bool = False
+    ) -> np.ndarray:
+        return self.embed_queries([text], instruction, num_ctx, on_cpu=on_cpu)[0]
 
     def embed_queries(
-        self, texts: list[str], instruction: bool, num_ctx: int = 4096, unload: bool = False
+        self,
+        texts: list[str],
+        instruction: bool,
+        num_ctx: int = 4096,
+        unload: bool = False,
+        on_cpu: bool = False,
     ) -> np.ndarray:
         queries = [QUERY_INSTRUCTION + t if instruction else t for t in texts]
-        return embed_texts(self.model, queries, num_ctx, unload=unload)
+        return embed_texts(self.model, queries, num_ctx, unload=unload, on_cpu=on_cpu)
 
     def search(
         self,

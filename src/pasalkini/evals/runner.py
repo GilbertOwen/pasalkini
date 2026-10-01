@@ -12,6 +12,7 @@ import hashlib
 import json
 import subprocess
 import time
+from collections import Counter
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
@@ -20,6 +21,7 @@ import httpx
 import numpy as np
 import ollama
 
+from pasalkini.answer.agent import Agent
 from pasalkini.answer.generate import generate
 from pasalkini.answer.pipeline import Pipeline
 from pasalkini.evals.metrics import ItemResult, percent, pipeline_table, score, summary_table
@@ -172,6 +174,8 @@ def evaluate_with_pipeline(
     result.dropped_citations = outcome.dropped
     result.first_problems = outcome.first_problems
     result.drafts_raw = [draft.raw for draft in outcome.drafts]
+    if isinstance(pipeline, Agent):
+        result.agent_steps = outcome.steps
     result.calculation = outcome.calculation.text() if outcome.calculation else None
     return score(result, item)
 
@@ -222,6 +226,16 @@ def write_summary(run_dir: Path, meta: dict, results: list[ItemResult]) -> None:
     pipeline = any(r.abstained is not None for r in results)
     if pipeline:
         lines += ["", "Answer pipeline:", "", *pipeline_table(results)]
+    stepped = [r.agent_steps for r in results if r.agent_steps is not None]
+    if stepped:
+        used = Counter(tool for steps in stepped for tool in steps)
+        tools = ", ".join(f"{tool} {n}" for tool, n in used.most_common())
+        lines += [
+            "",
+            f"Agent: {sum(map(len, stepped)) / len(stepped):.1f} tool calls a question on "
+            f"average ({tools}); {sum(not steps for steps in stepped)} of {len(stepped)} "
+            "questions used no tool.",
+        ]
     lines += [
         "",
         "Definitions:",
@@ -280,7 +294,7 @@ def write_grading_sheet(run_dir: Path, results: list[ItemResult]) -> None:
 
 def run(config_name: str, retrieval_only: bool = False, split: str | None = None) -> Path:
     config = CONFIGS[config_name]
-    verified = config.answer_mode == "verified"
+    verified = config.answer_mode != "baseline"
     if verified and retrieval_only:
         raise SystemExit(
             f"{config.name} asks the chat model what kind of question it is before searching, "
@@ -306,7 +320,10 @@ def run(config_name: str, retrieval_only: bool = False, split: str | None = None
     queries = index.embed_queries(
         texts, config.query_instruction, config.embed_num_ctx, unload=not retrieval_only
     )
-    pipeline = Pipeline(config, chunks, index, lexical, topics) if verified else None
+    pipeline = None
+    if verified:
+        kind = Agent if config.answer_mode == "agent" else Pipeline
+        pipeline = kind(config, chunks, index, lexical, topics)
 
     git = git_state()  # the code this run executes is the code on disk now, not at the end
     started_at = datetime.now()

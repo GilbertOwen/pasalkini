@@ -93,6 +93,7 @@ class ItemResult(BaseModel):
     dropped_citations: list[str] = []  # cited by the final answer but failed the checks
     first_problems: list[str] = []  # what the citation checks said about the first answer
     drafts_raw: list[str] = []  # each answer attempt as the model wrote it
+    agent_steps: list[str] | None = None  # agent only: the tools it used, in order
     calculation: str | None = None
 
     # Metrics, recomputed by score() from the fields above and the current answer keys.

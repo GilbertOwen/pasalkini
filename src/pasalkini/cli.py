@@ -187,7 +187,7 @@ def cmd_ask(args: argparse.Namespace) -> None:
         config.embed_model, chunks, config.embed_num_ctx, with_titles=config.chunk_headers
     )
     lexical = BM25Index(chunks) if config.retriever != "dense" else None
-    if config.answer_mode == "verified":
+    if config.answer_mode != "baseline":
         ask_pipeline(args, config, chunks, index, lexical)
         return
     text = expand_query(args.question, load_topics()) if config.rewrite_query else args.question
@@ -233,16 +233,18 @@ def cmd_ask(args: argparse.Namespace) -> None:
 def ask_pipeline(args: argparse.Namespace, config, chunks, index, lexical) -> None:
     from datetime import date
 
+    from pasalkini.answer.agent import Agent
     from pasalkini.answer.pipeline import Pipeline
     from pasalkini.sources import load_topics
 
-    # Embed first and free the embedding model: on a 6 GB GPU it cannot stay loaded next to
-    # the chat model.
-    query_vector = index.embed_queries(
-        [args.question], config.query_instruction, config.embed_num_ctx, unload=True
-    )[0]
+    # The embedding model runs on the CPU here: the 6 GB GPU cannot hold it next to the chat
+    # model, and on the CPU it can stay loaded between questions.
+    query_vector = index.embed_query(
+        args.question, config.query_instruction, config.embed_num_ctx, on_cpu=True
+    )
     date_hint = date.fromisoformat(args.date) if args.date else None
-    pipeline = Pipeline(config, chunks, index, lexical, load_topics())
+    kind = Agent if config.answer_mode == "agent" else Pipeline
+    pipeline = kind(config, chunks, index, lexical, load_topics())
     outcome = pipeline.run(args.question, date_hint, query_vector)
     u = outcome.understanding
     print("Informasi hukum, bukan nasihat hukum. Dijawab oleh AI.\n")
@@ -254,6 +256,8 @@ def ask_pipeline(args: argparse.Namespace, config, chunks, index, lexical) -> No
     print("Konteks:")
     for chunk in outcome.context:
         print(f"  {chunk.source_id:<40} {chunk.title}")
+    if outcome.steps:
+        print("Langkah agen: " + ", ".join(outcome.steps))
     if outcome.retried:
         print("Diperbaiki sekali setelah pemeriksaan: " + "; ".join(outcome.first_problems))
     print(", ".join(f"{step} {seconds:.1f} s" for step, seconds in outcome.seconds.items()))

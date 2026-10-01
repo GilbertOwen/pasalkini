@@ -96,6 +96,7 @@ class Outcome:
     changed_since: list[str] = field(default_factory=list)
     confidence: str = "rendah"
     seconds: dict[str, float] = field(default_factory=dict)
+    steps: list[str] = field(default_factory=list)  # agent only: the tools it used
 
     @property
     def retried(self) -> bool:

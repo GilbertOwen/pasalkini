@@ -72,7 +72,7 @@ class Understanding:
     as_of: date
     as_of_source: Literal["pertanyaan", "pemilih_tanggal", "hari_ini"]
     provisions: list[str]  # articles the question names, e.g. 'uu-13-2003/pasal-59'
-    method: Literal["llm", "rules"] = "llm"
+    method: Literal["llm", "rules", "agent"] = "llm"
     seconds: float = 0.0
 
     @property

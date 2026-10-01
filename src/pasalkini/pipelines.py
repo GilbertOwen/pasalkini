@@ -35,8 +35,10 @@ class PipelineConfig(BaseModel):
     max_answer_tokens: int = 1024
     # baseline: the Phase 2 answer step (short JSON with source IDs, nothing checked)
     # verified: the Phase 5 pipeline (pasalkini.answer.pipeline): question classified, articles
-    #   the question names added, exact quotes checked in code, calculator for amounts
-    answer_mode: Literal["baseline", "verified"] = "baseline"
+    #   the question names added, quotes checked in code, calculator for amounts
+    # agent: the model chooses what to look up with tools (pasalkini.answer.agent), then the
+    #   same answer step and checks
+    answer_mode: Literal["baseline", "verified", "agent"] = "baseline"
 
 
 CONFIGS: dict[str, PipelineConfig] = {
@@ -116,6 +118,18 @@ CONFIGS: dict[str, PipelineConfig] = {
             date_filter=True,
             retriever="hybrid",
             answer_mode="verified",
+        ),
+        PipelineConfig(
+            name="pasalkini-agent",
+            description=(
+                "Agent: rules read the date; the model picks one tool per step (search with "
+                "its own query, an article's history, the calculator), at most four steps, "
+                "then the same answer step and citation check as pasalkini."
+            ),
+            corpus="versions",
+            date_filter=True,
+            retriever="hybrid",
+            answer_mode="agent",
         ),
     ]
 }
