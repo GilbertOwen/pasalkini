@@ -100,6 +100,7 @@ class ItemResult(BaseModel):
     rewritten: bool | None = None
     reselected: bool | None = None  # the model picked quotes again after finding no answer
     trimmed: bool | None = None  # its sentences after a code-written opening failed twice
+    no_rule: bool | None = None  # it said the law has no rule on this, which was not shown
     answer_problems: list[str] = []  # what the first answer mentioned that it was not given
     ungrounded: list[str] = []  # ... and what the shown answer still does
     later_sources: list[str] = []  # law that began after the date, shown as such and not cited
@@ -241,6 +242,7 @@ PIPELINE_HEADER = [
     "Citations dropped",
     "Answer grounded first try",
     "Answer shown ungrounded",
+    "'No rule' claims withheld",
 ]
 
 
@@ -261,6 +263,7 @@ def pipeline_table(results: list[ItemResult]) -> list[str]:
                 percent([bool(r.dropped_citations) for r in answered]),
                 percent([r.grounded_first for r in written]),
                 percent([bool(r.ungrounded) for r in written]),
+                percent([r.no_rule for r in written]),
             ]
         )
     return table(PIPELINE_HEADER, rows)

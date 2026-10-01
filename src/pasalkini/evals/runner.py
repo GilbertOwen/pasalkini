@@ -181,6 +181,7 @@ def evaluate_with_pipeline(
     result.rewritten = outcome.rewritten if outcome.drafts else None
     result.reselected = outcome.reselected if outcome.drafts else None
     result.trimmed = outcome.trimmed if outcome.drafts else None
+    result.no_rule = outcome.no_rule if outcome.drafts else None
     result.answer_problems = outcome.answer_problems
     result.ungrounded = outcome.ungrounded
     result.later_sources = [passage.source_id for passage in outcome.later]
@@ -270,6 +271,9 @@ def write_summary(run_dir: Path, meta: dict, results: list[ItemResult]) -> None:
             "that it was not given (and, for history questions, no date); otherwise it was "
             "rewritten once. *Answer shown ungrounded*: the answer shown still does, and says "
             "so in a note.",
+            "- *'No rule' claims withheld*: the model answered that the law has no rule on the "
+            "matter; that is not shown as an answer (the model picks again, or the answer "
+            "abstains).",
         ]
     lines.append("")
     (run_dir / "summary.md").write_text("\n".join(lines), encoding="utf-8")
