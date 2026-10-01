@@ -3,7 +3,16 @@
 import json
 from pathlib import Path
 
-from pasalkini.evals.metrics import ItemResult, matches_expected, median, percent, score
+from pasalkini.evals.metrics import (
+    ItemResult,
+    any_expected,
+    groups,
+    matches_expected,
+    median,
+    percent,
+    score,
+    table,
+)
 from pasalkini.evals.schema import load_golden
 
 
@@ -76,3 +85,46 @@ def compare(run_dirs: list[Path], split: str | None = None, category: str | None
         ]
         lines.append("| " + " | ".join(row) + " |")
     return "\n".join(lines)
+
+
+FUNNEL_HEADER = [
+    "Group",
+    "Answerable",
+    "Expected source in context",
+    "... and cited",
+    "Lost in retrieval",
+    "Lost in the answer",
+]
+
+
+def funnel(run_dir: Path) -> str:
+    """Where questions that have an expected source are lost: the source never reached the
+    context (retrieval), or it did and the answer did not cite it (the answer step, which
+    includes wrong abstentions)."""
+    items = {item.id: item for item in load_golden()}
+    _, results = load_run(run_dir)
+    rows = []
+    for label, group in groups(results):
+        answerable = [
+            r
+            for r in group
+            if items[r.id].expected_sources
+            and not items[r.id].should_abstain
+            and r.json_ok is not None
+        ]
+        if not answerable:
+            continue
+        found = [r for r in answerable if any_expected(r.context_ids, items[r.id].expected_sources)]
+        cited = [r for r in found if r.cited_expected]
+        n = len(answerable)
+        rows.append(
+            [
+                label,
+                str(n),
+                f"{100 * len(found) / n:.0f}% ({len(found)}/{n})",
+                f"{100 * len(cited) / n:.0f}% ({len(cited)}/{n})",
+                str(n - len(found)),
+                str(len(found) - len(cited)),
+            ]
+        )
+    return "\n".join(table(FUNNEL_HEADER, rows))

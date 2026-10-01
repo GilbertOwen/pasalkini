@@ -1,0 +1,45 @@
+{
+  "config": {
+    "name": "versions",
+    "description": "Ablation: one chunk per article version with its validity in the title, but no date filter.",
+    "corpus": "versions",
+    "date_filter": false,
+    "history_cues": false,
+    "retriever": "dense",
+    "rewrite_query": false,
+    "chunk_headers": false,
+    "embed_model": "qwen3-embedding:0.6b",
+    "chat_model": "qwen3.5:4b",
+    "top_k": 5,
+    "query_instruction": false,
+    "think": false,
+    "temperature": 0.0,
+    "seed": 42,
+    "num_ctx": 8192,
+    "embed_num_ctx": 4096,
+    "max_chars_per_chunk": 2500,
+    "max_answer_tokens": 1024,
+    "answer_mode": "baseline"
+  },
+  "retrieval_only": false,
+  "git": {
+    "commit": "b80bc1ed7625f8f4011795673f71cf36cbcd4f79",
+    "dirty": false
+  },
+  "models": {
+    "qwen3-embedding:0.6b": "ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d",
+    "qwen3.5:4b": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd"
+  },
+  "corpus": {
+    "chunks": 848,
+    "fingerprint": "4187af9e33b47fd8",
+    "newly_embedded": 0
+  },
+  "dataset": {
+    "items": 78,
+    "reviewed": 0,
+    "sha256": "988e70202fdf504ce8f9e168afe6ce5c56b84f28592e51c89eb141b2e9175791"
+  },
+  "started_at": "2026-10-01T11:02:46",
+  "finished_at": "2026-10-01T11:07:48"
+}

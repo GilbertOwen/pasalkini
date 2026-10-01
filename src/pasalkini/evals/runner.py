@@ -195,7 +195,7 @@ def write_summary(run_dir: Path, meta: dict, results: list[ItemResult]) -> None:
         f"- Git commit: {commit}",
         f"- Corpus: {corpus['chunks']} chunks, fingerprint `{corpus['fingerprint']}`",
         f"- Dataset: {dataset['items']} items, sha256 `{dataset['sha256'][:12]}`",
-        f"- Mode: {mode}",
+        f"- Mode: {mode}" + (f", {meta['split']} split only" if meta.get("split") else ""),
     ]
     if "rescored" in meta:
         rescored = meta["rescored"]
@@ -278,7 +278,7 @@ def write_grading_sheet(run_dir: Path, results: list[ItemResult]) -> None:
             )
 
 
-def run(config_name: str, retrieval_only: bool = False) -> Path:
+def run(config_name: str, retrieval_only: bool = False, split: str | None = None) -> Path:
     config = CONFIGS[config_name]
     verified = config.answer_mode == "verified"
     if verified and retrieval_only:
@@ -286,7 +286,7 @@ def run(config_name: str, retrieval_only: bool = False) -> Path:
             f"{config.name} asks the chat model what kind of question it is before searching, "
             "so it has no retrieval-only mode. Use temporal-hybrid for retrieval alone."
         )
-    items = load_golden()
+    items = [item for item in load_golden() if split is None or item.split == split]
     # Fingerprint what was loaded: the file may be edited while a long run is going.
     dataset_sha = hashlib.sha256(GOLDEN_PATH.read_bytes()).hexdigest()
     chunks = load_chunks(config)
@@ -310,7 +310,7 @@ def run(config_name: str, retrieval_only: bool = False) -> Path:
 
     git = git_state()  # the code this run executes is the code on disk now, not at the end
     started_at = datetime.now()
-    suffix = "-retrieval" if retrieval_only else ""
+    suffix = ("-retrieval" if retrieval_only else "") + (f"-{split}" if split else "")
     run_dir = RUNS_DIR / f"{started_at:%Y%m%d-%H%M%S}-{config.name}{suffix}"
     run_dir.mkdir(parents=True)
 
@@ -353,6 +353,7 @@ def run(config_name: str, retrieval_only: bool = False) -> Path:
     meta = {
         "config": config.model_dump(),
         "retrieval_only": retrieval_only,
+        "split": split,
         "git": git,
         "models": model_digests(models),
         "corpus": {

@@ -27,10 +27,12 @@ question (+ date) ─► date: read from the question, else the date picker, els
                  ─► context: articles the question names, the calculator's articles, then
                     dense + BM25 search over the versions that applied on the date
                     (every version up to it for status and history questions)
-                 ─► qwen3.5:4b answers in JSON with a word-for-word quote per citation
-                 ─► code checks each citation: in the context, quote in its text, applied on the date
+                 ─► history or status question ─► code states the article's timeline
+                 ─► qwen3.5:4b answers in JSON with a quote per citation
+                 ─► code finds each quote in the context (near matches allowed, never a
+                    different number) in a text that applied on the date
                     ─► fails: one repair with the problems listed
-                    ─► shows verified citations only; none left: abstains
+                    ─► shows the citations that passed, in the source's words; none left: abstains
                  ─► notes on cited articles that changed after the date
 ```
 
@@ -45,13 +47,15 @@ question (+ date) ─► date: read from the question, else the date picker, els
 | Revocation restores replaced wording | `temporal/build.py` | Perppu 2/2022 revoked UU 11/2020 (Pasal 185) while restating its amendments |
 | Filter by date before ranking | `retrieve/temporal.py` | A version that did not apply cannot be retrieved, so it cannot be cited |
 | Arithmetic in code | `tools/pesangon.py` | Exact, testable, and each rule names its article |
-| Code checks every citation | `answer/verify.py` | A small model misquotes and cites stale text; a check it cannot talk its way past catches both |
+| Code checks every citation | `answer/verify.py` | A small model tidies what it copies and mixes up IDs; the check finds the passage, refuses a changed number, and shows the source's own words |
+| Code states what it knows exactly | `answer/context.py`, `tools/pesangon.py` | An article's timeline and a severance amount come from the temporal model and the rules; the model explains them |
 | A fixed pipeline, not an agent | `answer/pipeline.py` | A 4B model follows a fixed flow more reliably; an agent loop has to beat it on the evals first |
 
 ## Checks that keep it honest
 
 - Parser: UU 13/2003 parses to exactly 193 articles; Pasal 81 points are continuous in both Cipta Kerja texts; MK 168's citations of Perppu point numbers match where the parser placed each article.
 - Temporal model: property tests (a new event never changes the law before its date; versions never overlap or leave gaps) and fact tests against the primary texts.
+- Answers: the pipeline is tested end to end with a scripted model (every path: verified, repaired, abstained, refused, history, calculator).
 - Evaluation: every label must match a chunk in the corpus; runs record the config, git commit, model digests and dataset fingerprint; `rescore` re-scores a run when keys change.
 
 ## Storage

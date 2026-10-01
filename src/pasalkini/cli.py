@@ -77,7 +77,7 @@ def cmd_eval(args: argparse.Namespace) -> None:
 
     mode = "retrieval only" if args.retrieval_only else "retrieval and answers"
     print(f"Evaluating '{args.config}' ({mode})...")
-    run_dir = run(args.config, retrieval_only=args.retrieval_only)
+    run_dir = run(args.config, retrieval_only=args.retrieval_only, split=args.split)
     print(f"Run saved to {run_dir.relative_to(run_dir.parents[2])}")
     print((run_dir / "summary.md").read_text(encoding="utf-8"))
 
@@ -150,6 +150,14 @@ def cmd_compare(args: argparse.Namespace) -> None:
 
     table = compare([RUNS_DIR / r for r in args.runs], split=args.split, category=args.category)
     print(table)
+
+
+def cmd_funnel(args: argparse.Namespace) -> None:
+    from pasalkini.evals.compare import funnel
+    from pasalkini.evals.runner import RUNS_DIR
+
+    runs = sorted(p for p in RUNS_DIR.iterdir() if p.is_dir())
+    print(funnel(RUNS_DIR / args.run if args.run else runs[-1]))
 
 
 def cmd_rescore(args: argparse.Namespace) -> None:
@@ -279,6 +287,7 @@ def main() -> None:
     evaluate = sub.add_parser("eval", help="run a pipeline over the evaluation set")
     evaluate.add_argument("config", nargs="?", default="baseline", choices=sorted(CONFIGS))
     evaluate.add_argument("--retrieval-only", action="store_true", help="skip answer generation")
+    evaluate.add_argument("--split", choices=["dev", "test"], help="only this split")
 
     sub.add_parser("build", help="build the temporal model (events and article versions)")
 
@@ -296,6 +305,9 @@ def main() -> None:
     comp.add_argument("--split", choices=["dev", "test"], help="only this split")
     comp.add_argument("--category", help="only this category, e.g. temporal_trap")
 
+    lost = sub.add_parser("funnel", help="where answerable questions are lost")
+    lost.add_argument("run", nargs="?", help="run folder name (default: the latest)")
+
     rescore = sub.add_parser("rescore", help="recompute a saved run against the current keys")
     rescore.add_argument("run", nargs="?", help="run folder name (default: the latest)")
 
@@ -312,6 +324,7 @@ def main() -> None:
         "index": cmd_index,
         "eval": cmd_eval,
         "rescore": cmd_rescore,
+        "funnel": cmd_funnel,
         "compare": cmd_compare,
         "build": cmd_build,
         "law": cmd_law,

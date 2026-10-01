@@ -11,6 +11,8 @@ Ideas that are out of scope for the current phase. Move an item into PLAN.md onl
 - Retrieval misses that hybrid search does not fix: pesangon-002 ("is the severance table a minimum?") never ranks Pasal 156, whose text is a long table. Candidates: a reranker on the top 20 (`bge-reranker-v2-m3`, a 2 GB download), ayat-level chunks, or an LLM rewrite of the question into legal terms.
 - Run the embedding model on the CPU (`num_gpu: 0`) so it can stay loaded next to the chat model. The 6 GB GPU cannot hold both, so `ask` unloads one before the other, and an agent that searches with its own queries cannot run at all.
 - Agent loop with tools (`search_pasal`, `get_history`, `hitung_pesangon`, at most 4 steps) compared with the fixed pipeline on the evals (PLAN.md Phase 5).
+- Join words the PDF extraction broke at a line end ("sebagai be-rikut", "sebagai-mana", "peru-bahan" in UU 13/2003). The citation check tolerates them; search and the text shown to users do not. Needs a re-parse and re-embedding.
+- Timelines that say what changed between wordings. A re-enacted article gets a new wording with a new start date although its content is the same (Pasal 78 under UU 11/2020 and under Perppu 2/2022), and the model reports that date as the date of the change. A word-level diff per step would let code say "isi sama" or list the changed words; OCR noise in the Perppu text is the obstacle.
 - Weekly law watch as a scheduled task: check peraturan.go.id for the promulgated new labor law and new labor PPs.
 - Provincial minimum wage amounts (UMP/UMK) as a structured table.
 - Labor rights set by other laws, for example maternity leave in UU 4/2024 on KIA.

@@ -118,7 +118,8 @@ class Outcome:
         if self.caveats:
             parts.append("Catatan:\n" + "\n".join(f"- {c}" for c in self.caveats))
         if self.referral:
-            parts.append(f"Sebaiknya tanyakan juga ke: {self.referral}")
+            also = "" if self.abstained else "juga "
+            parts.append(f"Sebaiknya tanyakan {also}ke: {self.referral}")
         return "\n\n".join(parts)
 
 
@@ -326,7 +327,11 @@ class Pipeline:
             return
 
         outcome.answer = final.answer
-        outcome.citations = check.valid
+        # Two quotes can land on the same passage; show it once.
+        seen: dict[tuple[str, str], Citation] = {}
+        for citation in check.valid:
+            seen.setdefault((citation.source_id, citation.quote), citation)
+        outcome.citations = list(seen.values())
         outcome.caveats = list(final.caveats)
         cited_ids = {c.source_id for c in check.valid}
         cited = [
