@@ -194,6 +194,18 @@ def cmd_agreement(args: argparse.Namespace) -> None:
             print("\n".join(agreement(reference, judged)))
 
 
+def cmd_rulings(_: argparse.Namespace) -> None:
+    from pasalkini.answer.context import instrument_label
+    from pasalkini.temporal.corpus import load_dated_corpus
+    from pasalkini.temporal.rulings import reading
+
+    for chunk in load_dated_corpus():
+        if "/amar-" in chunk.source_id:
+            print(chunk.source_id)
+            print("  " + reading(chunk.text, instrument_label(chunk.source_id)))
+            print()
+
+
 def cmd_ask(args: argparse.Namespace) -> None:
     from datetime import date
 
@@ -321,6 +333,7 @@ def main() -> None:
     evaluate.add_argument("--split", choices=["dev", "test"], help="only this split")
 
     sub.add_parser("build", help="build the temporal model (events and article versions)")
+    sub.add_parser("rulings", help="MK ruling points as the answer step reads them, for review")
 
     law = sub.add_parser("law", help="an instrument as it stood on a date")
     law.add_argument("instrument", help="e.g. uu-13-2003")
@@ -367,6 +380,7 @@ def main() -> None:
         "funnel": cmd_funnel,
         "compare": cmd_compare,
         "build": cmd_build,
+        "rulings": cmd_rulings,
         "law": cmd_law,
         "history": cmd_history,
         "ask": cmd_ask,

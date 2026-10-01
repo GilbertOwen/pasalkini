@@ -84,6 +84,7 @@ Other commands:
 | `pasalkini judge <run> --split dev` | Grade a run's answers with the local model (`judge.csv`) |
 | `pasalkini agreement <run>` | The judge against grades given by reading (`grades-*.csv`) |
 | `pasalkini spotcheck` | 30 random parsed articles to compare with the PDFs |
+| `pasalkini rulings` | Each MK ruling point as the answer step reads it, for review |
 
 ## Layout
 
