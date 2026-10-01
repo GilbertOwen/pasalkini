@@ -21,6 +21,7 @@ evals/runs/*/*
 !evals/runs/*/config.json
 !evals/runs/*/grading.csv
 !evals/runs/*/grades-*.csv
+!evals/runs/*/judge*.csv
 
 # Editors and tools
 .vscode/

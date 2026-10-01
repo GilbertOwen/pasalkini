@@ -19,7 +19,7 @@ from pasalkini.answer.pipeline import (
     shown_passages,
 )
 from pasalkini.answer.understand import Classification
-from pasalkini.answer.verify import Answer, Citation, Selection, check_selection
+from pasalkini.answer.verify import Answer, Citation, Comparison, Selection, check_selection
 from pasalkini.pipelines import CONFIGS
 from pasalkini.retrieve.dense import DenseIndex
 from pasalkini.temporal.corpus import DatedChunk
@@ -80,9 +80,10 @@ class ScriptedChat:
     (none once the script runs out, as when later law is searched), and the answer written (the
     same short answer unless the test scripts others)."""
 
-    def __init__(self, intent="jelaskan", selections=(), answers=(), facts=None):
+    def __init__(self, intent="jelaskan", selections=(), answers=(), facts=None, comparisons=()):
         self.intent, self.facts = intent, facts
         self.selections, self.answers = list(selections), list(answers)
+        self.comparisons = list(comparisons)
         self.calls: list[tuple[str, list[dict]]] = []
 
     def __call__(self, options, messages, schema):
@@ -93,6 +94,8 @@ class ScriptedChat:
             parsed = self.selections.pop(0) if self.selections else picks()
         elif schema is Answer:
             parsed = self.answers.pop(0) if self.answers else says(SAID)
+        elif schema is Comparison:
+            parsed = self.comparisons.pop(0) if self.comparisons else BEFORE_AND_NOW
         else:
             parsed = schema.model_validate(self.facts)
         return Reply(parsed, parsed.model_dump_json(), 10, 5, 0.0)
@@ -109,6 +112,13 @@ def says(text: str, **fields) -> Answer:
     return Answer(**{"dasar": None, "batasan": None, "answer": text, **fields})
 
 
+BEFORE_AND_NOW = Comparison(
+    lama="Lembur paling banyak 3 jam sehari", sekarang="Lembur paling lama 4 jam sehari."
+)
+COMPARED = (
+    "Bunyi lama: Lembur paling banyak 3 jam sehari. Bunyi yang berlaku pada 1 Oktober 2026: "
+    "Lembur paling lama 4 jam sehari."
+)
 PICKS_OLD = picks((OLD.source_id, "paling banyak 3 (tiga) jam"))
 PICKS_NEW = picks((NEW.source_id, "paling lama 4 (empat) jam"))
 
@@ -237,11 +247,29 @@ def test_the_words_an_answer_says_it_rests_on_must_be_in_its_passages():
     assert "salin persis dari KUTIPAN" in chat.named("Answer")[-1][-1]["content"]
 
 
+PICKS_REST = picks((REST.source_id, "istirahat mingguan 1 hari"))
+
+
+def test_when_the_passages_hold_no_answer_the_model_picks_again_once():
+    nothing = says("Kutipan tidak menyebut batas lembur.", abstain=True)
+    chat = ScriptedChat(selections=[PICKS_REST, PICKS_OLD], answers=[nothing, says(SAID)])
+    outcome = run(chat)
+    assert outcome.reselected and not outcome.abstained and outcome.answer == SAID
+    assert [c.source_id for c in outcome.citations] == [OLD.source_id]
+    again = chat.named("Selection")[1]
+    assert again[-2]["role"] == "assistant" and "istirahat mingguan" in again[-2]["content"]
+    assert again[-1]["content"].startswith(
+        "Kutipan itu tidak memuat jawabannya. Kutipan tidak menyebut batas lembur. Pilih kutipan"
+    )
+
+
 def test_an_answer_that_finds_nothing_in_its_passages_abstains():
     nothing = says("Kutipan tidak menyebut batas lembur.", abstain=True)
-    outcome = run(ScriptedChat(selections=[PICKS_OLD], answers=[nothing]))
+    # Picking the same passage again is not a second chance.
+    chat = ScriptedChat(selections=[PICKS_OLD, PICKS_OLD], answers=[nothing])
+    outcome = run(chat)
     assert outcome.abstained and outcome.answer == "Kutipan tidak menyebut batas lembur."
-    assert not outcome.citations
+    assert not outcome.citations and len(chat.named("Answer")) == 1
     # What was found is still shown, as found and not as the basis of an answer.
     assert "Kutipan terdekat yang ditemukan:\n- UU 13/2003 Pasal 78" in outcome.display()
 
@@ -298,30 +326,45 @@ def test_a_status_question_about_an_article_not_in_the_model_goes_to_the_model()
     assert outcome.lead is None and chat.named("Answer")
 
 
-def test_code_opens_a_history_answer_and_the_model_may_not_add_dates():
-    dated_answer = says("Bunyinya diubah sejak 2 November 2020 menjadi 4 jam sehari.")
-    plain = says("Batasnya naik dari 3 jam menjadi 4 jam sehari.")
-    chat = ScriptedChat(intent="riwayat", selections=[PICKS_NEW], answers=[dated_answer, plain])
-    outcome = run(chat, "Apa yang berubah pada Pasal 78 UU 13/2003?", TODAY)
-    assert outcome.lead == OPENING
-    assert outcome.answer_problems == ["tanggal 2 November 2020"] and outcome.rewritten
-    assert outcome.answer == f"{OPENING} Batasnya naik dari 3 jam menjadi 4 jam sehari."
-    given = chat.named("Answer")[0][-1]["content"]
-    assert f"KALIMAT PEMBUKA (oleh program): {OPENING}" in given
-    assert "TUGAS: Jelaskan apa yang berubah" in given
-
-
-def test_a_question_about_change_is_given_the_first_wording_to_compare_with():
+def test_a_question_about_change_is_answered_as_the_old_wording_and_the_current_one():
     chat = ScriptedChat(intent="riwayat", selections=[PICKS_NEW])
-    outcome = run(chat, "Apa yang berubah soal lembur setelah Cipta Kerja?", TODAY)
+    outcome = run(chat, "Apa yang berubah pada Pasal 78 UU 13/2003?", TODAY)
     # The model quoted only the wording that applies; code adds the original, in front.
     assert [c.source_id for c in outcome.citations] == [OLD.source_id, NEW.source_id]
-    given = chat.named("Answer")[0][-1]["content"]
-    assert given.index(THREE) < given.index(FOUR)
-    # Nothing is added when the model quotes the original itself.
+    given = chat.named("Comparison")[0][-1]["content"]
+    assert (
+        "1. BUNYI LAMA: UU 13/2003 Pasal 78" in given and "2. BUNYI SEKARANG: UU 13/2003" in given
+    )
+    assert given.index(THREE) < given.index(FOUR) and "TUGAS" not in given
+    # Code opens with the article's status and labels the two summaries.
+    assert outcome.lead == OPENING and outcome.answer == f"{OPENING} {COMPARED}"
+    assert not chat.named("Answer")
+
+
+def test_each_summary_may_only_use_its_own_wording_and_neither_may_state_dates():
+    swapped = Comparison(lama="Lembur paling lama 4 jam.", sekarang="Lembur paling banyak 3 jam.")
+    chat = ScriptedChat(intent="riwayat", selections=[PICKS_NEW], comparisons=[swapped])
+    outcome = run(chat, "Apa yang berubah soal lembur setelah Cipta Kerja?", TODAY)
+    assert outcome.answer_problems == [
+        "angka 4 (tidak ada di bunyi lama)",
+        "angka 3 (tidak ada di bunyi sekarang)",
+    ]
+    assert outcome.rewritten and outcome.answer == COMPARED and not outcome.ungrounded
+    dated_summary = Comparison(lama="Sejak 25 Maret 2003 paling banyak 3 jam.", sekarang="4 jam.")
+    chat = ScriptedChat(intent="riwayat", selections=[PICKS_NEW], comparisons=[dated_summary])
+    outcome = run(chat, "Apa yang berubah soal lembur setelah Cipta Kerja?", TODAY)
+    assert outcome.answer_problems == ["tanggal 25 Maret 2003"]
+
+
+def test_without_an_old_wording_a_question_about_change_goes_to_the_usual_answer():
     both = picks((OLD.source_id, "paling banyak 3 (tiga) jam"), (NEW.source_id, "paling lama 4"))
-    outcome = run(ScriptedChat(intent="riwayat", selections=[both]), "Apa yang berubah?", TODAY)
+    chat = ScriptedChat(intent="riwayat", selections=[both])
+    outcome = run(chat, "Apa yang berubah?", TODAY)
     assert [c.source_id for c in outcome.citations] == [OLD.source_id, NEW.source_id]
+    assert outcome.answer == COMPARED  # the model quoted both itself: nothing was added
+    only_old = ScriptedChat(intent="riwayat", selections=[PICKS_OLD])
+    outcome = run(only_old, "Apa yang berubah pada aturan lembur sampai 2019?", date(2019, 6, 1))
+    assert not only_old.named("Comparison") and outcome.answer == SAID
 
 
 def test_merge_periods_names_the_status_change():
@@ -336,28 +379,17 @@ CONTRACT_FACTS = {"jenis": "kompensasi_pkwt", "lama_tahun": 0, "lama_bulan": 6, 
 AMOUNT = "Menurut hitungan program, uang kompensasi PKWT-nya Rp2.000.000 (6/12 x 1 bulan upah)."
 
 
-def test_an_amount_that_was_asked_for_is_stated_by_code_with_the_quotes_as_sources():
-    chat = ScriptedChat(
-        intent="hitung",
-        facts=CONTRACT_FACTS,
-        selections=[picks((COMPENSATION.source_id, "uang kompensasi diberikan dengan ketentuan"))],
-    )
+def test_an_amount_that_was_asked_for_is_stated_and_sourced_by_code():
+    chat = ScriptedChat(intent="hitung", facts=CONTRACT_FACTS)
     outcome = run(chat, CONTRACT, date(2022, 3, 15))
     assert outcome.calculation.result.total == 2_000_000
-    assert COMPENSATION.source_id in [c.source_id for c in outcome.context]
-    # The model picks the passage; it writes no sentence of the answer.
-    assert outcome.answer == AMOUNT and not chat.named("Answer")
-    assert [c.source_id for c in outcome.citations] == [COMPENSATION.source_id]
-    assert "Hitungan (oleh program):" in outcome.display() and outcome.referral is None
-
-
-def test_a_calculation_without_a_quote_cites_its_articles_by_their_first_lines():
-    chat = ScriptedChat(intent="hitung", facts=CONTRACT_FACTS, selections=[picks()])
-    outcome = run(chat, CONTRACT, date(2022, 3, 15))
+    # After reading the facts the model has nothing left to do.
+    assert [name for name, _ in chat.calls] == ["Classification", "FaktaHitungan"]
     assert outcome.answer == AMOUNT and not outcome.abstained
     assert [(c.source_id, c.quote) for c in outcome.citations] == [
         (COMPENSATION.source_id, "uang kompensasi diberikan dengan ketentuan sebagai berikut")
     ]
+    assert "Hitungan (oleh program):" in outcome.display() and outcome.referral is None
 
 
 def test_an_enacted_perppu_is_named_with_its_law_once_that_law_applied():
@@ -524,7 +556,7 @@ def test_a_quoted_ayat_is_read_with_what_the_court_ruled_about_it():
     struck = (
         "Putusan MK: Menurut Putusan MK 168/PUU-XXI/2023, kata “dapat” dalam Pasal 79 ayat (5) "
         "tidak berlaku lagi (tidak mempunyai kekuatan hukum mengikat): baca ketentuan itu tanpa "
-        "kata-kata tersebut."
+        "kata-kata tersebut, sehingga hal yang diaturnya bukan lagi pilihan."
     )
     quoted = picks((LEAVE.source_id, "Perusahaan tertentu dapat memberikan istirahat panjang"))
     passages = check_selection(quoted, [LEAVE], day, False).passages
@@ -533,7 +565,7 @@ def test_a_quoted_ayat_is_read_with_what_the_court_ruled_about_it():
         LEAVE.title,
         # The word the Court struck is taken out of what the model reads, and marked.
         "(5) Perusahaan tertentu memberikan istirahat panjang. [kata “dapat” dihapus oleh "
-        "Putusan MK 168/PUU-XXI/2023]",
+        "Putusan MK 168/PUU-XXI/2023: bukan lagi pilihan]",
         struck,  # from the ruling's full text, not from the note cut short under the article
     ]
     # The user is still shown the source's own words.

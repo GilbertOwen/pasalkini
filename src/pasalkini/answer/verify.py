@@ -48,6 +48,8 @@ SCANNED_BRACKET = re.compile(r"\d+[il]")
 NOTE_ID = re.compile(r"^\[([^\]\s]+)\]", re.MULTILINE)
 AYAT = re.compile(r"^\((\d+[a-z]?)\)")
 ITEM = re.compile(r"^([a-z])[.\-]\s")
+# What a model puts before an item it quotes, to say where it is: '(2) d. istirahat panjang …'.
+LOCATOR = re.compile(r"^\s*(?:\(\d+[a-z]?\)\s*)?(?:[a-z][.)\-]\s+)?")
 NUMBER_WORDS = frozenset(
     "nol satu dua tiga empat lima enam tujuh delapan sembilan sepuluh sebelas seratus seribu "
     "belas puluh ratus ribu juta setengah koma".split()
@@ -94,6 +96,17 @@ class Answer(BaseModel):
     perselisihan: bool = Field(
         default=False, description="true jika penanya sedang menghadapi PHK atau perselisihan"
     )
+
+
+class Comparison(BaseModel):
+    """The answer to a question about change: what the old wording says and what the wording in
+    force says, each summarised from its own passage. Asked to compare the two in free prose,
+    the model gave the old rule as the new one."""
+
+    lama: str | None = Field(description="isi bunyi lama, satu kalimat")
+    sekarang: str | None = Field(description="isi bunyi yang berlaku, satu kalimat")
+    abstain: bool = Field(default=False, description="true jika kutipan tidak memuat hal itu")
+    perselisihan: bool = False
 
 
 @dataclass
@@ -192,6 +205,12 @@ def find_spans(quote: str, text: str) -> list[tuple[int, int]] | None:
         if len(" ".join(part)) < MIN_QUOTE_CHARS:
             continue  # a marker such as '(2) …', not evidence
         span = _find(part, words, begin)
+        if span is None:
+            # The ayat's number is a number, and every number of a quote has to be found. But
+            # the ayat's own line may stand four items further up.
+            bare = [word for word, _, _ in _words(LOCATOR.sub("", piece, count=1))]
+            if len(bare) < len(part) and len(" ".join(bare)) >= MIN_QUOTE_CHARS:
+                part, span = bare, _find(bare, words, begin)
         if span is None:
             return None
         first, last, matched = span

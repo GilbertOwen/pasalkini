@@ -183,6 +183,7 @@ def agreement(reference: dict[str, str], judged: dict[str, str]) -> list[str]:
         return ["No answers graded by both."]
     exact = sum(a == b for a, b in pairs)
     right = sum((a == "correct") == (b == "correct") for a, b in pairs)
+    wrong = sum((a == "wrong") == (b == "wrong") for a, b in pairs)
     k = kappa(pairs)
     counts = Counter(pairs)
     rows = [[g, *(str(counts[(g, j)]) for j in GRADES)] for g in GRADES]
@@ -190,6 +191,7 @@ def agreement(reference: dict[str, str], judged: dict[str, str]) -> list[str]:
         f"- Answers graded by both: {len(pairs)}",
         f"- Same grade: {100 * exact / len(pairs):.0f}% ({exact}/{len(pairs)})",
         f"- Same on correct or not: {100 * right / len(pairs):.0f}% ({right}/{len(pairs)})",
+        f"- Same on wrong or not: {100 * wrong / len(pairs):.0f}% ({wrong}/{len(pairs)})",
         f"- Cohen's kappa: {'n/a' if k is None else f'{k:.2f}'}",
         "",
         *table(["Reference \\ judge", *GRADES], rows),

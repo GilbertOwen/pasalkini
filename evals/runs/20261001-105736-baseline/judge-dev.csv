@@ -1,0 +1,43 @@
+id,split,grade,by,reason
+pkwt-001-a,dev,wrong,model,poin utama tidak disebut
+pkwt-001-b,dev,partly,model,poin utama tidak disebut
+pkwt-001-c,dev,correct,model,
+pesangon-001-a,dev,wrong,model,poin utama tidak disebut
+pesangon-001-b,dev,wrong,model,poin utama tidak disebut
+istirahat-001-a,dev,correct,model,
+istirahat-001-b,dev,correct,model,
+stable-001,dev,correct,model,
+status-001,dev,wrong,model,poin utama tidak disebut
+changed-001,dev,partly,model,poin utama tidak disebut
+calc-001,dev,partly,model,larangan 1 dilanggar
+date-001,dev,wrong,model,poin 1 bertentangan; poin 2 bertentangan; poin 3 bertentangan; larangan 1 dilanggar
+abstain-001,dev,wrong,model,poin 1 bertentangan
+adversarial-001,dev,wrong,model,poin 1 bertentangan; larangan 1 dilanggar
+mingguan-001-a,dev,correct,model,
+mingguan-001-b,dev,correct,model,
+mingguan-001-c,dev,correct,model,
+istirahat-001-c,dev,wrong,model,poin 1 bertentangan
+kompensasi-001-a,dev,wrong,model,poin 1 bertentangan
+kompensasi-001-b,dev,correct,model,
+resign-001-a,dev,correct,model,
+resign-001-b,dev,wrong,model,poin utama tidak disebut
+penangguhan-001-a,dev,partly,model,poin utama tidak disebut
+penangguhan-001-b,dev,wrong,model,poin 1 bertentangan; keliru: Pasal 90 UU 13/2003 dihapus oleh UU 11/2020 (Pasal 81 angka 27)
+mikro-001-a,dev,wrong,model,"poin 1 bertentangan; keliru: Berdasarkan Peraturan Pemerintah No. 36 Tahun 2021 Pasal 36 ayat (1), ketentuan upah minimum sebagaimana dimaksud dalam "
+mikro-001-b,dev,wrong,model,poin 1 bertentangan
+pesangon-002-a,dev,correct,model,
+pesangon-002-b,dev,wrong,model,poin 1 bertentangan
+pesangon-002-c,dev,correct,model,
+jkp-001-a,dev,wrong,model,poin 1 bertentangan; larangan 1 dilanggar
+jkp-001-b,dev,correct,model,
+stable-002,dev,correct,model,
+stable-003,dev,correct,model,
+date-003,dev,wrong,model,poin 1 bertentangan; keliru: Perlu dicatat bahwa ketentuan ini berlaku untuk periode Agustus 2019 karena pada saat itu aturan yang aktif adalah Undan
+date-004,dev,correct,model,
+date-005,dev,correct,model,
+status-003,dev,wrong,model,"poin 1 bertentangan; keliru: Ya, Pasal 90 UU No. 13 Tahun 2003 tentang Penangguhan Upah masih berlaku sebagai dasar hukum utama, meskipun telah menga"
+changed-002,dev,correct,model,
+calc-002,dev,correct,model,
+abstain-002,dev,correct,model,
+abstain-003,dev,correct,model,
+adversarial-002,dev,correct,model,

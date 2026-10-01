@@ -68,7 +68,7 @@ def test_a_ruling_without_a_condition_strikes_the_words():
     assert reading(WORD_STRUCK, MK168) == (
         "Menurut Putusan MK 168/PUU-XXI/2023, kata “dapat” dalam Pasal 79 ayat (5) tidak berlaku "
         "lagi (tidak mempunyai kekuatan hukum mengikat): baca ketentuan itu tanpa kata-kata "
-        "tersebut."
+        "tersebut, sehingga hal yang diaturnya bukan lagi pilihan."
     )
     assert meaning_of(WORD_STRUCK) is None and ayat_of(WORD_STRUCK) == "5"
 

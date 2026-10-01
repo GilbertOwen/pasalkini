@@ -178,6 +178,7 @@ def evaluate_with_pipeline(
     result.material = outcome.material or None
     result.grounded_first = not outcome.answer_problems if outcome.drafts else None
     result.rewritten = outcome.rewritten if outcome.drafts else None
+    result.reselected = outcome.reselected if outcome.drafts else None
     result.answer_problems = outcome.answer_problems
     result.ungrounded = outcome.ungrounded
     result.later_sources = [passage.source_id for passage in outcome.later]

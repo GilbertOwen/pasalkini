@@ -280,6 +280,17 @@ def test_a_quoted_opening_line_brings_the_items_under_it_unless_one_is_quoted():
     assert [line[:2] for line in text.splitlines()] == ["(2", "…", "b."]
 
 
+def test_a_locator_in_front_of_a_quoted_item_is_not_part_of_the_quote():
+    # The model says where the item is; the '(2)' it writes stands four lines above the item.
+    item = "(2) d. istirahat panjang sekurang-kurangnya 2 (dua) bulan bagi pekerja/buruh"
+    assert (
+        locate(item, REST)
+        == "istirahat panjang sekurang-kurangnya 2 (dua) bulan bagi pekerja/buruh"
+    )
+    # A locator does not excuse a wrong number in the quote itself.
+    assert not quote_in(item.replace("2 (dua) bulan", "3 (tiga) bulan"), REST)
+
+
 def test_a_bracket_scanned_as_a_letter_does_not_fail_a_reference_to_an_ayat():
     scanned = "sebagaimana dimaksud pada ayat (1), ayat (2l., dan ayat (3), Perusahaan tertentu"
     assert quote_in("dimaksud pada ayat (1), ayat (2), dan ayat (3), Perusahaan tertentu", scanned)

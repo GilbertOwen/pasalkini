@@ -129,12 +129,13 @@ def test_agreement_counts_same_grades_and_corrects_for_chance():
         "f": "wrong",
     }
     lines = agreement(reference, judged)
-    assert lines[:3] == [
+    assert lines[:4] == [
         "- Answers graded by both: 5",
         "- Same grade: 60% (3/5)",
         "- Same on correct or not: 60% (3/5)",
+        "- Same on wrong or not: 80% (4/5)",
     ]
-    assert lines[3].startswith("- Cohen's kappa: 0.4")
+    assert lines[4].startswith("- Cohen's kappa: 0.4")
     assert "| correct | 1 | 1 | 0 |" in lines
     same = [("correct", "correct"), ("wrong", "wrong")]
     assert kappa(same) == 1.0 and kappa([]) is None

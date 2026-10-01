@@ -93,6 +93,8 @@ def reading(text: str, court: str) -> str:
     )
     if subject.startswith(("kata ", "frasa ")):
         sentence += ": baca ketentuan itu tanpa kata-kata tersebut"
+    if subject.startswith("kata “dapat”"):  # 'may give' without 'may'
+        sentence += ", sehingga hal yang diaturnya bukan lagi pilihan"
     return sentence + "."
 
 

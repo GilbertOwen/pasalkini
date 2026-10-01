@@ -368,7 +368,8 @@ def as_ruled(library: Library, chunk: Chunk, text: str) -> str:
             changed = without(line, words) if line.startswith(f"({ayat})") else None
             if changed:
                 by = instrument_label(note_id)
-                lines[i] = f"{changed} [kata “{words}” dihapus oleh {by}]"
+                effect = ": bukan lagi pilihan" if words == "dapat" else ""
+                lines[i] = f"{changed} [kata “{words}” dihapus oleh {by}{effect}]"
     return "\n".join(lines)
 
 
