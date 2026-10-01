@@ -23,17 +23,31 @@ ONLINE (per question, answer/pipeline.py)
 question (+ date) ─► date: read from the question, else the date picker, else today          rules
                  ─► kind: explain | status | history | calculate | out of scope             qwen3.5:4b, JSON
                  ─► out of scope ─► refusal and referral (no search)
-                 ─► calculate ─► the model reads the facts; tools/pesangon.py computes
-                 ─► context: articles the question names, the calculator's articles, then
-                    dense + BM25 search over the versions that applied on the date
+                 ─► a calculation, or a dismissal whose payments are asked about
+                    ─► the model reads the facts; tools/pesangon.py computes                 code
+                 ─► context: articles the question names, the severance tables for a
+                    severance question, the calculator's articles, then dense + BM25
+                    search over the versions that applied on the date
                     (every version up to it for status and history questions)
-                 ─► history or status question ─► code states the article's timeline
-                 ─► qwen3.5:4b answers in JSON with a quote per citation
-                 ─► code finds each quote in the context (near matches allowed, never a
-                    different number) in a text that applied on the date
-                    ─► fails: one repair with the problems listed
-                    ─► shows the citations that passed, in the source's words; none left: abstains
-                 ─► notes on cited articles that changed after the date
+                 ─► status of a named article ─► answered from the temporal model            code
+                 ─► an amount that was asked for ─► answered from the calculator             code
+                 ─► otherwise:
+                    1. the model picks quotes from the context                               qwen3.5:4b, JSON
+                    2. code finds each quote (near matches allowed, never a different        code
+                       number) in a text that applied on the date; one repair
+                    3. code lays out the passages: the quoted lines, the line that opens
+                       their ayat, lines that refer back to them, and what the
+                       Constitutional Court ruled about them
+                    4. the model answers from the passages alone: first the words it         qwen3.5:4b, JSON
+                       answers from, then any limit on them, then the answer
+                       (a question about change: one summary of the old wording, one of
+                       the current)
+                    5. code checks the answer's numbers, articles and dates against          code
+                       what it was given; one rewrite
+                 ─► no answer in the passages ─► the model picks again, once
+                 ─► still none ─► articles that began after the date are searched:
+                    "not yet in force on that date", or abstain and show what was found
+                 ─► notes by code: rulings on the cited articles, what changed after the date
 ```
 
 ## Key ideas
@@ -47,16 +61,19 @@ question (+ date) ─► date: read from the question, else the date picker, els
 | Revocation restores replaced wording | `temporal/build.py` | Perppu 2/2022 revoked UU 11/2020 (Pasal 185) while restating its amendments |
 | Filter by date before ranking | `retrieve/temporal.py` | A version that did not apply cannot be retrieved, so it cannot be cited |
 | Arithmetic in code | `tools/pesangon.py` | Exact, testable, and each rule names its article |
-| Code checks every citation | `answer/verify.py` | A small model tidies what it copies and mixes up IDs; the check finds the passage, refuses a changed number, and shows the source's own words |
-| Code states what it knows exactly | `answer/context.py`, `tools/pesangon.py` | An article's timeline and a severance amount come from the temporal model and the rules; the model explains them |
+| Code checks every quote | `answer/verify.py` | A small model tidies what it copies and mixes up IDs; the check finds the passage, refuses a changed number, and shows the source's own words |
+| Pick the passages first, then answer from them alone | `answer/pipeline.py` | Answering over seven articles at once, the model mixed details between them and misread long ones. Correct answers on the development questions went from 23 to 33-36 of 42 |
+| What code can state, the model does not write | `answer/context.py`, `tools/pesangon.py`, `temporal/rulings.py` | An article's status, a severance amount and the effect of a court ruling come from the temporal model, the rules and the ruling's fixed formula. The model's own versions of these were where the mistakes were |
+| The answer's sentences are checked too | `answer/verify.py: ungrounded` | Every number and article the answer mentions must be in what it was given; after an opening by code, sentences that fail are left out |
 | A fixed pipeline, not an agent | `answer/pipeline.py`, `answer/agent.py` | Measured: letting the 4B model choose its own searches and tools cites an expected source in 81% of answers against 91%, and is slower (`docs/eval-results.md`) |
 
 ## Checks that keep it honest
 
 - Parser: UU 13/2003 parses to exactly 193 articles; Pasal 81 points are continuous in both Cipta Kerja texts; MK 168's citations of Perppu point numbers match where the parser placed each article.
 - Temporal model: property tests (a new event never changes the law before its date; versions never overlap or leave gaps) and fact tests against the primary texts.
-- Answers: the pipeline is tested end to end with a scripted model (every path: verified, repaired, abstained, refused, history, calculator).
-- Evaluation: every label must match a chunk in the corpus; runs record the config, git commit, model digests and dataset fingerprint; `rescore` re-scores a run when keys change.
+- Answers: the pipeline is tested end to end with a scripted model (every path: picked, repaired, rewritten, picked again, abstained, refused, status and amount by code, old and current wording, later law).
+- Evaluation: every label must match a chunk in the corpus; runs record the config, git commit, model digests and dataset fingerprint, and start from a freshly loaded model; `rescore` re-scores a run when keys change.
+- Correctness: answers are graded by reading (`grades-*.csv`), and the automatic judge is used only as far as it agrees with that reading (`pasalkini agreement`).
 
 ## Storage
 
@@ -67,4 +84,4 @@ question (+ date) ─► date: read from the question, else the date picker, els
 | Events and versions | `data/processed/pasalkini.db` | no |
 | Embedding cache | `data/processed/index/` | no |
 | Source list, manual events, review sheet | `sources/` | yes |
-| Evaluation runs | `evals/runs/<run>/` | summary, config and grading sheet only |
+| Evaluation runs | `evals/runs/<run>/` | summary, config, grading sheet, grades by reading, the judge's grades (not the answers themselves) |

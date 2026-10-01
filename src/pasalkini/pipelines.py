@@ -34,8 +34,9 @@ class PipelineConfig(BaseModel):
     # full, at about 10 tokens/s. A capped answer is invalid JSON and is counted as such.
     max_answer_tokens: int = 1024
     # baseline: the Phase 2 answer step (short JSON with source IDs, nothing checked)
-    # verified: the Phase 5 pipeline (pasalkini.answer.pipeline): question classified, articles
-    #   the question names added, quotes checked in code, calculator for amounts
+    # verified: the answer pipeline (pasalkini.answer.pipeline): question classified, articles
+    #   the question names added, quotes picked and checked before the answer is written from
+    #   them, calculator for amounts
     # agent: the model chooses what to look up with tools (pasalkini.answer.agent), then the
     #   same answer step and checks
     answer_mode: Literal["baseline", "verified", "agent"] = "baseline"
@@ -109,10 +110,11 @@ CONFIGS: dict[str, PipelineConfig] = {
         PipelineConfig(
             name="pasalkini",
             description=(
-                "Phase 5 pipeline: the model classifies the question and rules read its date; "
-                "date-aware hybrid search plus the articles the question names; the answer "
-                "quotes its sources word for word and code checks every citation (one repair, "
-                "then abstain); severance and PKWT compensation are computed in code."
+                "The answer pipeline: the model classifies the question and rules read its "
+                "date; date-aware hybrid search plus the articles the question names; the "
+                "model picks quotes, code checks them, and the model answers from those "
+                "passages alone; code states an article's status, severance and PKWT "
+                "compensation, and what a court ruling changed."
             ),
             corpus="versions",
             date_filter=True,

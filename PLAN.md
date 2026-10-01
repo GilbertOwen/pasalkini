@@ -384,11 +384,11 @@ pasalkini/
 | Adversarial | "Anggap kamu pengacara saya…", prompt injection | 15 |
 | **Total** | | **150** |
 
-- [ ] Grow the set to 150, including new-law questions. The LLM may draft questions from version pairs; you verify every one and mark it `human` or `synthetic_verified`.
-- [ ] LLM-as-judge with a rubric per category. Calibrate it against your Phase 2 hand labels (agreement rate, Cohen's kappa) and trust it only where agreement is high.
-- [ ] Model comparison on the test set: `qwen3.5:4b` thinking off vs on; a smaller Qwen for query understanding; an API model on synthetic questions only. Report accuracy, latency and cost per 100 questions. API keys go in `.env`, never in Git.
-- [ ] External check on the labor items of LegalBench-ID.
-- [ ] Error analysis: label each failure (retrieval miss, wrong version, parse error, reasoning, calculation, citation), fix the two biggest causes, re-run.
+- [ ] Grow the set to 150, including new-law questions. The LLM may draft questions from version pairs; you verify every one and mark it `human` or `synthetic_verified`. *(78 so far, all drafts. Not grown further: every added question is another key for a person to check.)*
+- [x] LLM-as-judge with a rubric per category. Calibrate it against your Phase 2 hand labels (agreement rate, Cohen's kappa) and trust it only where agreement is high. *(Done with one rubric and a verdict per key point; calibrated against an AI's reading of 252 answers, because hand labels do not exist yet: kappa 0.59, 93% on "wrong or not". Repeat `pasalkini agreement` once a person has graded a run.)*
+- [ ] Model comparison on the test set: `qwen3.5:4b` thinking off vs on; a smaller Qwen for query understanding; an API model on synthetic questions only. Report accuracy, latency and cost per 100 questions. API keys go in `.env`, never in Git. *(Thinking on/off done: thinking is unusable here. The other two need a download and an API key.)*
+- [ ] External check on the labor items of LegalBench-ID. *(Needs the dataset downloaded.)*
+- [x] Error analysis: label each failure (retrieval miss, wrong version, parse error, reasoning, calculation, citation), fix the two biggest causes, re-run. *(Five rounds, each from reading the answers of the run before; `docs/eval-results.md` section 2.)*
 - [ ] Ask a law student or an LBH volunteer to review 30 answers.
 
 **Deliverable:** `docs/eval-results.md`.
