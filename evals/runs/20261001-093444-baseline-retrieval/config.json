@@ -1,0 +1,43 @@
+{
+  "config": {
+    "name": "baseline",
+    "description": "Plain RAG: dense search over every version of every article with dates ignored; qwen3.5:4b answers from the top 5 chunks.",
+    "corpus": "documents",
+    "date_filter": false,
+    "history_cues": false,
+    "retriever": "dense",
+    "rewrite_query": false,
+    "chunk_headers": false,
+    "embed_model": "qwen3-embedding:0.6b",
+    "chat_model": "qwen3.5:4b",
+    "top_k": 5,
+    "query_instruction": false,
+    "think": false,
+    "temperature": 0.0,
+    "seed": 42,
+    "num_ctx": 8192,
+    "embed_num_ctx": 4096,
+    "max_chars_per_chunk": 2500,
+    "max_answer_tokens": 1024
+  },
+  "retrieval_only": true,
+  "git": {
+    "commit": "cb34bf009fccd0547d732517c03f7c48c660845c",
+    "dirty": false
+  },
+  "models": {
+    "qwen3-embedding:0.6b": "ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d"
+  },
+  "corpus": {
+    "chunks": 596,
+    "fingerprint": "4232c9324eb12fe8",
+    "newly_embedded": 0
+  },
+  "dataset": {
+    "items": 61,
+    "reviewed": 0,
+    "sha256": "2480ce86a1e3ff6b5699792fb4f9c0cc6fd7865d5712348e6786b391dcb1a2d8"
+  },
+  "started_at": "2026-10-01T09:34:44",
+  "finished_at": "2026-10-01T09:34:44"
+}
