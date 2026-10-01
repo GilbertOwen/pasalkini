@@ -477,25 +477,32 @@ def test_a_severance_question_without_a_wage_gets_the_multipliers_from_the_calcu
     assert 'dibaca dari "perusahaan efisiensi"' in outcome.calculation.text()
 
 
-def test_after_a_calculation_the_models_sentences_are_shown_only_if_they_pass_the_checks():
+def test_after_a_calculation_the_models_sentences_about_amounts_are_not_shown():
     opening = "Menurut hitungan program untuk PHK dengan alasan"
-    names_article = says("Uang penghargaan masa kerja mengikuti tabel Pasal 156 ayat (2).")
-    plain = says("Hak itu timbul karena perusahaan tutup.")
-    facts = efficiency_facts("perusahaan efisiensi")
-    chat = ScriptedChat(facts=facts, selections=[PICKS_OLD], answers=[names_article, plain])
-    outcome = run(chat, EFFICIENCY)
-    # The article is one the calculation names, so it is grounded; it is still not wanted here.
-    assert outcome.answer_problems == ["nomor pasal atau ayat"] and outcome.rewritten
-    assert (
-        outcome.answer.endswith("Hak itu timbul karena perusahaan tutup.") and not outcome.trimmed
+    restated = says(
+        "Anda berhak atas uang pesangon sebesar 2 kali upah per bulan kerja. Uang penghargaan "
+        "masa kerja mengikuti tabel Pasal 156 ayat (3). Hak ini timbul karena perusahaan tutup."
     )
-    asked = chat.named("Answer")[-1][-1]["content"]
-    assert "dasar hukumnya sudah ditampilkan program" in asked
-    # Named twice: the opening stands alone, and nothing unchecked is shown under it.
-    chat = ScriptedChat(facts=facts, selections=[PICKS_OLD], answers=[names_article] * 2)
-    outcome = run(chat, EFFICIENCY)
-    assert outcome.trimmed and outcome.answer.startswith(opening)
-    assert "Pasal 156" not in outcome.answer and not outcome.caveats and not outcome.ungrounded
+    facts = efficiency_facts("perusahaan efisiensi")
+    outcome = run(ScriptedChat(facts=facts, selections=[PICKS_OLD], answers=[restated]), EFFICIENCY)
+    assert outcome.answer.startswith(opening)
+    assert outcome.answer.endswith("ketentuan. Hak ini timbul karena perusahaan tutup.")
+    assert "upah per bulan kerja" not in outcome.answer and "Pasal 156" not in outcome.answer
+    # Nothing but amounts: the opening stands alone.
+    only_amounts = says("Uang pesangon dihitung 2 kali ketentuan.")
+    outcome = run(
+        ScriptedChat(facts=facts, selections=[PICKS_OLD], answers=[only_amounts]), EFFICIENCY
+    )
+    assert outcome.answer.startswith(opening) and outcome.answer.endswith("x ketentuan.")
+
+
+def test_after_an_opening_the_models_sentences_are_shown_only_if_they_pass_the_checks():
+    invented = says("Batasnya naik menjadi 9 jam sehari.")
+    chat = ScriptedChat(intent="riwayat", selections=[PICKS_OLD], answers=[invented, invented])
+    outcome = run(chat, "Apa yang berubah pada Pasal 78 UU 13/2003 sampai 2019?", date(2019, 6, 1))
+    # Named article, one wording only: the usual answer call, after the status sentence by code.
+    assert outcome.lead and outcome.trimmed and outcome.answer == outcome.lead
+    assert not outcome.caveats and not outcome.ungrounded
 
 
 def test_a_reason_the_question_does_not_state_is_not_calculated_with():

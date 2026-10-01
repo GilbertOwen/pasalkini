@@ -210,14 +210,20 @@ LOWER_RANK = (
     "yang sudah diubah Putusan MK, ikuti undang-undang dan Putusan MK."
 )
 NO_BASIS = "dasar yang tidak ada di KUTIPAN"
-NAMES_ARTICLES = "nomor pasal atau ayat"  # after a calculation, which lists its own bases
-ARTICLE_REFERENCE = re.compile(r"\bPasal\s+\d+|\bayat\s+\(\d+\)", re.IGNORECASE)
+# After a calculation, what the model says about amounts, multipliers and articles: code has
+# stated those, and the model's versions were where the mistakes were ('2 kali upah per bulan
+# kerja', 'tabel Pasal 40 ayat (2)' for long-service pay, 'Peraturan Presiden 35/2021').
+AMOUNT_TALK = re.compile(
+    r"\bkali\b|bulan upah|\bRp\s?\d|\d\s?%|\bpersen\b|\bPasal\s+\d+|\bayat\s+\(\d+\)"
+    r"|\bPeraturan\s+(?:Pemerintah|Presiden)\b|\bUndang-Undang\b",
+    re.IGNORECASE,
+)
 
 CALCULATION_TASK = (
     "KALIMAT PEMBUKA sudah menyebut hasil hitungan. Jika PERTANYAAN juga menanyakan hal lain, "
     "jawab hal itu dari KUTIPAN; jika tidak, tambahkan 1 kalimat tentang syarat atau hak lain "
-    "menurut KUTIPAN. Jangan menulis jumlah uang, jangan menghitung, dan jangan menyebut nomor "
-    "pasal atau ayat: dasar hukumnya sudah ditampilkan program."
+    "menurut KUTIPAN. Jangan menulis jumlah uang atau pengali, jangan menghitung, dan jangan "
+    "menyebut nomor pasal atau ayat: semuanya sudah ditampilkan program."
 )
 STATUS_TASK = (
     "Jawab apakah aturan itu masih berlaku pada TANGGAL, menurut RIWAYAT PASAL dan KUTIPAN. "
@@ -404,6 +410,12 @@ def sentence(text: str | None) -> str:
     return text if not text or text.endswith((".", "!", "?")) else text + "."
 
 
+def without_amounts(text: str) -> str:
+    """The sentences that do not restate amounts, multipliers or articles."""
+    sentences = re.split(r"(?<=[.!?])\s+", text.strip())
+    return " ".join(s for s in sentences if s and not AMOUNT_TALK.search(s))
+
+
 def unlabelled(summary: str | None) -> str:
     """'Bunyi lama mengatur bahwa lembur …' → 'Lembur …': code writes the label."""
     text = OWN_LABEL.sub("", (summary or "").strip())
@@ -444,15 +456,10 @@ def rewrite_message(problems: list[str]) -> str:
     if problems == [TOO_LONG]:
         return f"{TOO_LONG} Tulis ulang lebih singkat: paling banyak 2 kalimat."
     dates = [p for p in problems if p.startswith("tanggal ")]
-    others = [p for p in problems if p not in dates and p not in (NO_BASIS, NAMES_ARTICLES)]
+    others = [p for p in problems if p not in dates and p != NO_BASIS]
     lines = []
     if NO_BASIS in problems:
         lines.append("Isian dasar di atas tidak ditemukan di KUTIPAN: salin persis dari KUTIPAN.")
-    if NAMES_ARTICLES in problems:
-        lines.append(
-            "Jawaban di atas menyebut nomor pasal atau ayat; dasar hukumnya sudah ditampilkan "
-            "program."
-        )
     if others:
         lines.append(
             f"Jawaban di atas menyebut hal yang tidak tertulis di KUTIPAN: {', '.join(others)}."
@@ -776,9 +783,6 @@ class Pipeline:
             problems.append(NO_BASIS)
         if outcome.understanding.history:
             problems += [f"tanggal {found}" for found in dates_in(answer.answer)]
-        if outcome.calculation is not None and outcome.lead:
-            if ARTICLE_REFERENCE.search(answer.answer):
-                problems.append(NAMES_ARTICLES)
         return problems
 
     def keep_or_trim(self, outcome: Outcome) -> None:
@@ -831,6 +835,8 @@ class Pipeline:
             outcome.declined = final.answer.strip()
         elif final is not None:
             outcome.said, outcome.dispute = final.answer.strip(), final.perselisihan
+            if outcome.calculation is not None and outcome.lead:
+                outcome.said = without_amounts(outcome.said)  # code has stated the amounts
         self.keep_or_trim(outcome)
 
     def compare(self, outcome: Outcome) -> bool:
