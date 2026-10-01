@@ -18,25 +18,26 @@ regimes:
     pesangon_is_minimum: true  # Pasal 156 ayat (2): "paling sedikit"
     housing_medical_pct: 15  # Pasal 156 ayat (4) huruf c, of pesangon and/or UPMK
     reasons:
-      pelanggaran_setelah_sp3: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-161}
-      perubahan_status_pekerja_menolak: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-163}
-      perubahan_status_pengusaha_menolak: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-163}
-      tutup_rugi_2_tahun: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-164}
-      force_majeure: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-164}
+      pelanggaran_setelah_sp3: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-161, label: "pekerja melanggar perjanjian kerja, peraturan perusahaan atau PKB setelah surat peringatan pertama, kedua dan ketiga"}
+      perubahan_status_pekerja_menolak: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-163, label: "perubahan status, penggabungan, peleburan atau perubahan kepemilikan perusahaan, dan pekerja tidak bersedia melanjutkan hubungan kerja"}
+      perubahan_status_pengusaha_menolak: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-163, label: "perubahan status, penggabungan atau peleburan perusahaan, dan pengusaha tidak bersedia menerima pekerja"}
+      tutup_rugi_2_tahun: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-164, label: "perusahaan tutup karena rugi terus-menerus selama 2 tahun"}
+      force_majeure: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-164, label: "perusahaan tutup karena keadaan memaksa (force majeure)"}
       tutup_efisiensi:
+        label: "perusahaan tutup bukan karena rugi atau keadaan memaksa, tetapi karena efisiensi"
         pesangon: 2
         upmk: 1
         basis: uu-13-2003/pasal-164
         note: >-
           Sejak Putusan MK 19/PUU-IX/2011 (20 Juni 2012), "perusahaan tutup" berarti tutup
           permanen atau tutup tidak untuk sementara waktu.
-      pailit: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-165}
-      meninggal: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-166}
-      pensiun_tanpa_program_pensiun: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-167}
-      pengusaha_melakukan_pelanggaran: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-169}
-      sakit_berkepanjangan: {pesangon: 2, upmk: 2, basis: uu-13-2003/pasal-172}
-      mengundurkan_diri: {pesangon: 0, upmk: 0, uang_pisah: true, basis: uu-13-2003/pasal-162}
-      mangkir: {pesangon: 0, upmk: 0, uang_pisah: true, basis: uu-13-2003/pasal-168}
+      pailit: {pesangon: 1, upmk: 1, basis: uu-13-2003/pasal-165, label: "perusahaan pailit"}
+      meninggal: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-166, label: "pekerja meninggal dunia"}
+      pensiun_tanpa_program_pensiun: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-167, label: "pekerja memasuki usia pensiun dan tidak diikutkan program pensiun"}
+      pengusaha_melakukan_pelanggaran: {pesangon: 2, upmk: 1, basis: uu-13-2003/pasal-169, label: "pekerja meminta PHK karena perbuatan pengusaha, misalnya menganiaya atau tidak membayar upah 3 bulan berturut-turut"}
+      sakit_berkepanjangan: {pesangon: 2, upmk: 2, basis: uu-13-2003/pasal-172, label: "pekerja sakit berkepanjangan atau cacat akibat kecelakaan kerja lebih dari 12 bulan"}
+      mengundurkan_diri: {pesangon: 0, upmk: 0, uang_pisah: true, basis: uu-13-2003/pasal-162, label: "pekerja mengundurkan diri atas kemauan sendiri"}
+      mangkir: {pesangon: 0, upmk: 0, uang_pisah: true, basis: uu-13-2003/pasal-168, label: "pekerja mangkir 5 hari kerja atau lebih berturut-turut"}
 
   - id: celah-2020
     valid_from: 2020-11-02
@@ -54,23 +55,23 @@ regimes:
     minimum_basis: mk-168-puu-xxi-2023/amar-22
     housing_medical_pct: 0  # removed by UU 11/2020; not restored by MK 168 (amar 24)
     reasons:
-      penggabungan_peleburan_pemisahan: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-41}
-      pengambilalihan: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-42}
-      pengambilalihan_syarat_berubah: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-42}
-      efisiensi_karena_rugi: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-43}
-      efisiensi_mencegah_rugi: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-43}
-      tutup_rugi_2_tahun: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-44}
-      tutup_bukan_rugi: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-44}
-      force_majeure_tutup: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-45}
-      force_majeure_tidak_tutup: {pesangon: 0.75, upmk: 1, basis: pp-35-2021/pasal-45}
-      pkpu_karena_rugi: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-46}
-      pkpu_bukan_rugi: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-46}
-      pailit: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-47}
-      pengusaha_melakukan_pelanggaran: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-48}
-      mengundurkan_diri: {pesangon: 0, upmk: 0, uang_pisah: true, basis: pp-35-2021/pasal-50}
-      mangkir: {pesangon: 0, upmk: 0, uang_pisah: true, basis: pp-35-2021/pasal-51}
-      pelanggaran_setelah_sp3: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-52}
-      pelanggaran_mendesak: {pesangon: 0, upmk: 0, uang_pisah: true, basis: pp-35-2021/pasal-52}
-      sakit_berkepanjangan: {pesangon: 2, upmk: 1, basis: pp-35-2021/pasal-55}
-      pensiun: {pesangon: 1.75, upmk: 1, basis: pp-35-2021/pasal-56}
-      meninggal: {pesangon: 2, upmk: 1, basis: pp-35-2021/pasal-57}
+      penggabungan_peleburan_pemisahan: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-41, label: "penggabungan, peleburan atau pemisahan perusahaan"}
+      pengambilalihan: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-42, label: "pengambilalihan perusahaan"}
+      pengambilalihan_syarat_berubah: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-42, label: "pengambilalihan perusahaan yang mengubah syarat kerja, dan pekerja tidak bersedia melanjutkan hubungan kerja"}
+      efisiensi_karena_rugi: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-43, label: "efisiensi karena perusahaan mengalami kerugian"}
+      efisiensi_mencegah_rugi: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-43, label: "efisiensi untuk mencegah kerugian"}
+      tutup_rugi_2_tahun: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-44, label: "perusahaan tutup karena rugi selama 2 tahun, terus-menerus atau tidak"}
+      tutup_bukan_rugi: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-44, label: "perusahaan tutup bukan karena rugi"}
+      force_majeure_tutup: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-45, label: "perusahaan tutup karena keadaan memaksa (force majeure)"}
+      force_majeure_tidak_tutup: {pesangon: 0.75, upmk: 1, basis: pp-35-2021/pasal-45, label: "keadaan memaksa (force majeure) yang tidak membuat perusahaan tutup"}
+      pkpu_karena_rugi: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-46, label: "perusahaan dalam penundaan kewajiban pembayaran utang (PKPU) karena rugi"}
+      pkpu_bukan_rugi: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-46, label: "perusahaan dalam penundaan kewajiban pembayaran utang (PKPU) bukan karena rugi"}
+      pailit: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-47, label: "perusahaan pailit"}
+      pengusaha_melakukan_pelanggaran: {pesangon: 1, upmk: 1, basis: pp-35-2021/pasal-48, label: "pekerja meminta PHK karena perbuatan pengusaha, misalnya menganiaya atau tidak membayar upah 3 bulan berturut-turut"}
+      mengundurkan_diri: {pesangon: 0, upmk: 0, uang_pisah: true, basis: pp-35-2021/pasal-50, label: "pekerja mengundurkan diri atas kemauan sendiri"}
+      mangkir: {pesangon: 0, upmk: 0, uang_pisah: true, basis: pp-35-2021/pasal-51, label: "pekerja mangkir 5 hari kerja atau lebih berturut-turut"}
+      pelanggaran_setelah_sp3: {pesangon: 0.5, upmk: 1, basis: pp-35-2021/pasal-52, label: "pekerja melanggar perjanjian kerja, peraturan perusahaan atau PKB setelah surat peringatan pertama, kedua dan ketiga"}
+      pelanggaran_mendesak: {pesangon: 0, upmk: 0, uang_pisah: true, basis: pp-35-2021/pasal-52, label: "pekerja melakukan pelanggaran bersifat mendesak yang diatur dalam perjanjian kerja, peraturan perusahaan atau PKB"}
+      sakit_berkepanjangan: {pesangon: 2, upmk: 1, basis: pp-35-2021/pasal-55, label: "pekerja sakit berkepanjangan atau cacat akibat kecelakaan kerja lebih dari 12 bulan"}
+      pensiun: {pesangon: 1.75, upmk: 1, basis: pp-35-2021/pasal-56, label: "pekerja memasuki usia pensiun"}
+      meninggal: {pesangon: 2, upmk: 1, basis: pp-35-2021/pasal-57, label: "pekerja meninggal dunia"}

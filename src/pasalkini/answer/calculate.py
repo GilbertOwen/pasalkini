@@ -19,7 +19,7 @@ from pasalkini.tools.pesangon import (
     Result,
     hitung_kompensasi_pkwt,
     hitung_pesangon,
-    regime_on,
+    reasons_on,
 )
 
 RUPIAH = re.compile(
@@ -33,7 +33,8 @@ waktu tertentu (PKWT) yang berakhir.
 - lama_tahun dan lama_bulan: lama bekerja, atau lama kontrak untuk PKWT ("5 tahun 3 bulan" → 5 \
 dan 3; "18 bulan" → 0 dan 18). Isi 0 jika tidak disebut.
 - upah_bulanan: upah sebulan dalam rupiah, angka saja. Isi 0 jika tidak disebut.
-- alasan: alasan PHK, salah satu kode yang tersedia. Kosongkan untuk kompensasi_pkwt."""
+- alasan: untuk pesangon, kode alasan PHK dari daftar di bawah yang paling sesuai dengan \
+pertanyaan. Kosongkan untuk kompensasi_pkwt, atau jika tidak ada yang sesuai."""
 
 
 @dataclass
@@ -64,6 +65,8 @@ class Calculation:
             f"Upah sebulan: {rupiah_text(self.wage)}; masa kerja: {result.service}; "
             f"aturan: {result.regime}."
         ]
+        if result.reason:
+            lines.append(f"Alasan PHK yang dipakai: {result.reason}.")
         for line in result.lines:
             amount = rupiah_text(line.amount) if line.amount is not None else "tidak dihitung"
             lines.append(f"- {line.component}: {line.formula} = {amount} (dasar: {line.basis})")
@@ -71,6 +74,10 @@ class Calculation:
             least = "paling sedikit " if result.minimum else ""
             lines.append(f"Jumlah yang dihitung: {least}{rupiah_text(result.total)}")
         lines += [f"Catatan: {note}" for note in result.notes]
+        lines.append(
+            "Periksa bahwa upah, masa kerja dan alasan di atas sesuai dengan keadaan Anda: "
+            "semuanya dibaca dari pertanyaan."
+        )
         return "\n".join(lines)
 
 
@@ -109,10 +116,15 @@ def facts_schema(reasons: list[str]) -> type[BaseModel]:
 
 def calculate(question: str, end: date, chat: Chat, options: ChatOptions) -> Calculation:
     """`end` is the date of the dismissal or of the contract's end: the question's date."""
-    regime = regime_on(end)
-    reasons = sorted(regime["reasons"]) if regime and "reasons" in regime else []
+    # The schema constrains the output but the model never sees it, so the codes and what
+    # they mean go in the prompt. Without them the model's own words were forced into the
+    # nearest code: 'perusahaan tutup' came out as 'pensiun'.
+    labels = reasons_on(end)
+    reasons = sorted(labels)
+    listed = "\n".join(f"- {code}: {labels[code]}" for code in reasons)
+    system = FACTS_PROMPT + (f"\n\nKode alasan PHK:\n{listed}" if reasons else "")
     messages = [
-        {"role": "system", "content": FACTS_PROMPT},
+        {"role": "system", "content": system},
         {"role": "user", "content": question},
     ]
     reply = chat(options, messages, facts_schema(reasons))

@@ -91,6 +91,8 @@ class ItemResult(BaseModel):
     first_pass_ok: bool | None = None  # the first answer passed the citation checks
     retried: bool | None = None
     dropped_citations: list[str] = []  # cited by the final answer but failed the checks
+    first_problems: list[str] = []  # what the citation checks said about the first answer
+    drafts_raw: list[str] = []  # each answer attempt as the model wrote it
     calculation: str | None = None
 
     # Metrics, recomputed by score() from the fields above and the current answer keys.

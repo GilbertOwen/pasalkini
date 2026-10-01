@@ -1,10 +1,11 @@
 """The Phase 5 pipeline with a scripted chat model: every path without a GPU."""
 
+from dataclasses import replace
 from datetime import date
 
 import numpy as np
 
-from pasalkini.answer.context import Library, merge_periods
+from pasalkini.answer.context import Library, history_of, merge_periods
 from pasalkini.answer.llm import Reply
 from pasalkini.answer.pipeline import (
     NO_VERIFIED_SOURCE,
@@ -193,3 +194,61 @@ def test_an_enacted_perppu_is_named_with_its_law_once_that_law_applied():
     )
     ruling = "mk-168-puu-xxi-2023/amar-7"
     assert library.instrument(ruling, date(2025, 1, 1)) == "Putusan MK 168/PUU-XXI/2023"
+
+
+def test_a_history_question_without_a_named_article_compares_the_wordings_it_finds():
+    chat = ScriptedChat(
+        intent="riwayat", answers=[says((OLD.source_id, "paling banyak 3 (tiga) jam"))]
+    )
+    outcome = run(chat, "Apa yang berubah soal lembur setelah Cipta Kerja?", TODAY)
+    ids = [c.source_id for c in outcome.context]
+    # The rest-day article ranks first, then both wordings of the overtime article, oldest first.
+    assert ids[:3] == [REST.source_id, OLD.source_id, NEW.source_id]
+    assert outcome.timeline.startswith("Riwayat UU 13/2003 Pasal 78:")
+
+
+def test_the_calculator_prompt_lists_the_reasons_in_force_and_shows_the_one_used():
+    chat = ScriptedChat(
+        intent="hitung",
+        facts={
+            "jenis": "pesangon",
+            "lama_tahun": 5,
+            "lama_bulan": 3,
+            "upah_bulanan": 6000000,
+            "alasan": "tutup_rugi_2_tahun",
+        },
+        answers=[says((COMPENSATION.source_id, "uang kompensasi diberikan dengan ketentuan"))],
+    )
+    question = "Saya bekerja 5 tahun 3 bulan, upah Rp6.000.000, perusahaan tutup karena rugi."
+    outcome = run(chat, question, date(2023, 6, 1))
+    facts_prompt = next(m for name, m in chat.calls if name == "FaktaHitungan")[0]["content"]
+    assert "- tutup_rugi_2_tahun: perusahaan tutup karena rugi selama 2 tahun" in facts_prompt
+    assert "- pensiun: pekerja memasuki usia pensiun" in facts_prompt
+    text = outcome.calculation.text()
+    assert outcome.calculation.result.total == 30_000_000
+    assert "Alasan PHK yang dipakai: perusahaan tutup karena rugi selama 2 tahun" in text
+
+
+def test_an_article_deleted_twice_is_reported_as_deleted_since_the_first_deletion():
+    pid, title = "uu-13-2003/pasal-90", "UU 13/2003 Pasal 90 (x)"
+    chunks = [
+        dated(
+            pid, pid, "Pengusaha dilarang membayar upah lebih rendah", "2003-03-25", "2020-11-02"
+        ),
+        dated(
+            "uu-11-2020/pasal-81/angka-27", pid, "Dihapus.", "2020-11-02", "2022-12-30", "repealed"
+        ),
+        dated("perppu-2-2022/pasal-81/angka-30", pid, "Dihapus.", "2022-12-30", None, "repealed"),
+    ]
+    chunks = [replace(c, title=title) for c in chunks]
+    library = Library(chunks, {"perppu-2-2022": ("uu-6-2023", date(2023, 3, 31))})
+    perppu = "Perppu 2/2022 (ditetapkan menjadi UU 6/2023) [perppu-2-2022/pasal-81/angka-30]"
+    assert history_of(library, pid, TODAY).splitlines() == [
+        "Riwayat UU 13/2003 Pasal 90:",
+        "- 25 Maret 2003 s.d. 1 November 2020: bunyi asli [uu-13-2003/pasal-90]",
+        "- 2 November 2020 s.d. 29 Desember 2022: dihapus oleh UU 11/2020 "
+        "[uu-11-2020/pasal-81/angka-27]",
+        f"- sejak 30 Desember 2022: dihapus oleh {perppu}",
+        f"Pada 1 Oktober 2026: sudah dihapus. Dihapus sejak 2 November 2020; dasarnya sekarang "
+        f"{perppu}.",
+    ]

@@ -5,8 +5,9 @@
 - Then the articles the calculator used, then the search results.
 - Consecutive periods of the same wording (split only by a status change, such as a conditional
   ruling) are shown as one chunk over the whole span.
-- For status and history questions about a named article, code states the article's timeline
-  from the temporal model (history_of); the model explains it.
+- For status and history questions, each article found is shown with all its wordings, and
+  code states the timeline of the articles the question names (or of the first two that
+  changed) from the temporal model (history_of); the model explains it.
 """
 
 import re
@@ -161,9 +162,30 @@ def gather(
         add(chunk)
     limit = min(MAX_CONTEXT, top_k + len(chosen))
     for chunk in hits:
-        if isinstance(chunk, DatedChunk):
+        if not isinstance(chunk, DatedChunk):
+            continue
+        if history:
+            # A question about change needs wordings to compare: every wording of the
+            # article this hit belongs to, oldest first.
+            for version in library.versions(chunk.provision_id, as_of, history=True):
+                add(version)
+        else:
             add(chunk)
     return list(chosen.values())[:limit]
+
+
+def changed_provisions(
+    library: Library, context: list[Chunk], as_of: date, limit: int = 2
+) -> list[str]:
+    """Articles in the context that had more than one wording by the date, in context order."""
+    found: list[str] = []
+    for chunk in context:
+        if not isinstance(chunk, DatedChunk) or chunk.provision_id in found:
+            continue
+        versions = library.versions(chunk.provision_id, as_of, history=True)
+        if len({key(v) for v in versions}) > 1:
+            found.append(chunk.provision_id)
+    return found[:limit]
 
 
 KIND_WORDS = {"uu": "UU", "pp": "PP", "perppu": "Perppu", "permenaker": "Permenaker"}
@@ -228,8 +250,17 @@ def history_of(library: Library, provision_id: str, as_of: date) -> str | None:
     if not current:
         lines.append(f"Pada {day}: tidak ada versi yang berlaku.")
     elif current[0].status == "repealed":
+        # An article deleted by one law and deleted again by its replacement (UU 11/2020, then
+        # Perppu 2/2022) has been gone since the first deletion, not since the latest one.
+        since = current[0].valid_from
+        for version in reversed(library.versions(provision_id, as_of, history=True)):
+            if version.status == "repealed" and version.valid_to == since:
+                since = version.valid_from
         by = library.instrument(current[0].source_id, as_of)
-        lines.append(f"Pada {day}: sudah dihapus oleh {by} [{current[0].source_id}].")
+        lines.append(
+            f"Pada {day}: sudah dihapus. Dihapus sejak {format_date(since)}; dasarnya sekarang "
+            f"{by} [{current[0].source_id}]."
+        )
     else:
         now = current[0]
         how = "berlaku bersyarat" if now.status == "conditional" else "berlaku"

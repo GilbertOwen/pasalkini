@@ -170,6 +170,8 @@ def evaluate_with_pipeline(
     result.first_pass_ok = not outcome.first_problems if outcome.drafts else None
     result.retried = outcome.retried if outcome.drafts else None
     result.dropped_citations = outcome.dropped
+    result.first_problems = outcome.first_problems
+    result.drafts_raw = [draft.raw for draft in outcome.drafts]
     result.calculation = outcome.calculation.text() if outcome.calculation else None
     return score(result, item)
 

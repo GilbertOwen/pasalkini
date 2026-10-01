@@ -34,6 +34,7 @@ class Line:
 class Result:
     regime: str
     service: str  # '5 tahun 3 bulan'
+    reason: str = ""  # the dismissal reason the amounts rest on, in plain words
     lines: list[Line] = field(default_factory=list)
     minimum: bool = False  # the amounts are minimums ('paling sedikit')
     notes: list[str] = field(default_factory=list)
@@ -73,6 +74,14 @@ def regime_on(day: date) -> dict | None:
         if start <= day and (end is None or day < end):
             return regime
     return None
+
+
+def reasons_on(day: date) -> dict[str, str]:
+    """Dismissal reason codes of the rules in force on the date, with their descriptions."""
+    regime = regime_on(day)
+    if regime is None or "reasons" not in regime:
+        return {}
+    return {code: reason["label"] for code, reason in regime["reasons"].items()}
 
 
 def hitung_pesangon(
@@ -117,6 +126,7 @@ def hitung_pesangon(
             f"alasan '{alasan}' tidak dikenal; pilihan: {', '.join(sorted(reasons))}"
         )
     reason = reasons[alasan]
+    result.reason = f"{reason['label']} ({reason['basis']})"
     wage = Decimal(upah_bulanan)
     table_basis = regime["tables_basis"]
 
