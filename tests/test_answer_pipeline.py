@@ -11,8 +11,6 @@ from pasalkini.answer.pipeline import (
     DISPUTE_REFERRAL,
     LATER_PROMPT,
     NO_BASIS,
-    NO_RULE,
-    NO_RULE_FOUND,
     NO_VERIFIED_SOURCE,
     NOT_FOUND,
     OUT_OF_SCOPE,
@@ -298,56 +296,6 @@ def test_an_answer_that_finds_nothing_in_its_passages_abstains():
     assert not outcome.citations and len(chat.named("Answer")) == 1
     # What was found is still shown, as found and not as the basis of an answer.
     assert "Kutipan terdekat yang ditemukan:\n- UU 13/2003 Pasal 78" in outcome.display()
-
-
-NO_LIMIT = "Tidak ada batas maksimal lembur dalam peraturan yang berlaku pada tanggal tersebut."
-
-
-def test_saying_that_no_rule_exists_is_not_an_answer_and_the_model_picks_again():
-    # A quoted line can show what a rule says, not that there is none.
-    chat = ScriptedChat(selections=[PICKS_REST, PICKS_OLD], answers=[says(NO_LIMIT), says(SAID)])
-    outcome = run(chat)
-    assert outcome.no_rule and outcome.reselected and not outcome.abstained
-    assert outcome.answer == SAID and [c.source_id for c in outcome.citations] == [OLD.source_id]
-    again = chat.named("Selection")[1][-1]["content"]
-    assert again.startswith(f"Kutipan itu tidak memuat jawabannya. {NO_RULE_FOUND} Pilih kutipan")
-
-
-def test_a_no_rule_answer_that_stays_is_shown_as_not_found_in_the_passages():
-    chat = ScriptedChat(selections=[PICKS_OLD] * 3, answers=[says(NO_LIMIT)])
-    outcome = run(chat)
-    assert outcome.abstained and outcome.no_rule and outcome.answer == NO_RULE_FOUND
-    assert NO_LIMIT not in outcome.display() and not outcome.citations
-    assert "Kutipan terdekat yang ditemukan:\n- UU 13/2003 Pasal 78" in outcome.display()
-
-
-def test_after_an_opening_by_code_a_no_rule_sentence_is_left_out():
-    facts = efficiency_facts("perusahaan efisiensi")
-    said = says("Tidak ada ketentuan lain tentang hal ini.")
-    outcome = run(ScriptedChat(facts=facts, selections=[PICKS_OLD], answers=[said]), EFFICIENCY)
-    assert outcome.no_rule and not outcome.abstained and not outcome.reselected
-    assert outcome.answer == outcome.lead and "Tidak ada ketentuan" not in outcome.answer
-
-
-def test_which_sentences_count_as_saying_that_no_rule_exists():
-    claims = [
-        NO_LIMIT,
-        "Tidak ada ketentuan wajib memberikan istirahat panjang kepada pekerja.",
-        "Belum ada aturan tentang hal itu pada tanggal tersebut.",
-        "Undang-undang tidak mengatur batas waktu kontrak.",
-        "Hal ini tidak diatur dalam peraturan yang dikutip.",
-        "Kutipan tidak menyebutkan besaran upah lembur.",
-    ]
-    assert all(NO_RULE.search(claim) for claim in claims)
-    answers = [
-        SAID,
-        "Pekerja yang mengundurkan diri tidak berhak atas uang pesangon.",
-        "Lembur 5 jam sehari melanggar aturan, karena batasnya 4 jam.",
-        "Pengusaha tidak boleh membayar upah di bawah upah minimum.",
-        "Perjanjian kerja waktu tertentu tidak dapat diadakan untuk pekerjaan yang bersifat tetap.",
-        "Tidak ada uang pesangon untuk alasan ini; yang menjadi hak adalah uang penggantian hak.",
-    ]
-    assert not any(NO_RULE.search(answer) for answer in answers)
 
 
 def test_a_dispute_gets_the_fixed_referral():

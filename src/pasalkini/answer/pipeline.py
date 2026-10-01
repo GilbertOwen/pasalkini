@@ -220,18 +220,6 @@ AMOUNT_TALK = re.compile(
     re.IGNORECASE,
 )
 
-# An answer that says the law has no rule on something ('Tidak ada batas maksimal …', '… tidak
-# diatur'). A few quoted lines can show what a rule says, never that there is none: the rule may
-# be in the next ayat (the model quoted Pasal 59 ayat (3) and concluded that fixed-term contracts
-# have no maximum length, which ayat (4) sets), or in a regulation PasalKini does not hold.
-NO_RULE = re.compile(
-    r"\b(?:tidak|belum) (?:ada|terdapat|ditemukan)\b[^.]{0,40}?\b"
-    r"(?:batas|batasan|ketentuan|aturan|peraturan|pengaturan|larangan)\b"
-    r"|\btidak (?:diatur|mengatur|membatasi|menentukan|memuat|menyebut\w*)\b",
-    re.IGNORECASE,
-)
-NO_RULE_FOUND = "Kutipan yang ditemukan tidak memuat ketentuan tentang hal yang ditanyakan."
-
 CALCULATION_TASK = (
     "KALIMAT PEMBUKA sudah menyebut hasil hitungan. Jika PERTANYAAN juga menanyakan hal lain, "
     "jawab hal itu dari KUTIPAN; jika tidak, tambahkan 1 kalimat tentang syarat atau hak lain "
@@ -268,7 +256,6 @@ class Outcome:
     rewritten: bool = False  # the answer was written a second time after the checks
     reselected: bool = False  # the model picked again after finding no answer in its passages
     trimmed: bool = False  # the model's sentences after the opening failed the checks twice
-    no_rule: bool = False  # the model said the law has no rule on this: not shown as an answer
     said: str = ""  # the model's sentences; empty when it wrote none or found no answer
     declined: str = ""  # what the model said it could not find
     dispute: bool = False  # the model read the question as about the asker's own dispute
@@ -864,12 +851,6 @@ class Pipeline:
             outcome.said, outcome.dispute = final.answer.strip(), final.perselisihan
             if outcome.calculation is not None and outcome.lead:
                 outcome.said = without_amounts(outcome.said)  # code has stated the amounts
-            if not outcome.understanding.history and NO_RULE.search(outcome.said):
-                # Not an answer the passages can carry. After an opening by code it is left
-                # out; otherwise it counts as finding nothing, and the model picks again.
-                outcome.no_rule, outcome.said = True, ""
-                if not outcome.lead:
-                    outcome.declined = NO_RULE_FOUND
         self.keep_or_trim(outcome)
         note(problems=outcome.answer_problems, still=outcome.ungrounded, declined=outcome.declined)
 
