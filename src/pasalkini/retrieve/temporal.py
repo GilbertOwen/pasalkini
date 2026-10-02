@@ -48,9 +48,10 @@ def extract_date(question: str) -> date | None:
     if match:
         day = int(match.group(1)) if match.group(1) else 15
         return date(int(match.group(3)), MONTHS[match.group(2).lower()], day)
-    match = YEAR_IN_TEXT.search(question)
-    if match:
-        return date(int(match.group(1)), 7, 1)
+    for match in YEAR_IN_TEXT.finditer(question):
+        # 'Undang-Undang Nomor 13 Tahun 2003' names a law. It does not date the question.
+        if not re.search(r"\d\s*$", question[: match.start()]):
+            return date(int(match.group(1)), 7, 1)
     return None
 
 

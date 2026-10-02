@@ -38,6 +38,23 @@ def test_named_provisions():
     assert named_provisions("Berapa lama cuti tahunan?") == []
 
 
+def test_an_article_named_apart_from_its_instrument_belongs_to_the_one_named():
+    apart = "Pasal 90 UU Ketenagakerjaan (UU 13/2003) soal penangguhan upah, masih berlaku?"
+    assert named_provisions(apart) == ["uu-13-2003/pasal-90"]
+    assert named_provisions("Dalam PP 35/2021, apa isi Pasal 15?") == ["pp-35-2021/pasal-15"]
+    # Two instruments and no pairing: which one the article belongs to is not guessed.
+    assert named_provisions("Bandingkan UU 13/2003 dan PP 35/2021 soal Pasal 15.") == []
+
+
+def test_the_year_in_a_laws_name_is_not_the_questions_date():
+    long_form = "Apakah Pasal 59 Undang-Undang Nomor 13 Tahun 2003 masih berlaku?"
+    assert decide_date(long_form, date(2024, 1, 1), TODAY) == (date(2024, 1, 1), "pemilih_tanggal")
+    assert decide_date(long_form, None, TODAY) == (TODAY, "hari_ini")
+    assert named_provisions(long_form) == ["uu-13-2003/pasal-59"]
+    both = "Apa isi PP Nomor 35 Tahun 2021 tentang PKWT pada tahun 2022?"
+    assert decide_date(both, None, TODAY) == (date(2022, 7, 1), "pertanyaan")
+
+
 def test_invalid_model_output_falls_back_to_rules():
     def broken(options, messages, schema):
         return Reply(parsed=None, raw="{", prompt_tokens=0, output_tokens=0, seconds=0.0)

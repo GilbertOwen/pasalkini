@@ -76,8 +76,10 @@ def cmd_eval(args: argparse.Namespace) -> None:
     from pasalkini.evals.runner import run
 
     mode = "retrieval only" if args.retrieval_only else "retrieval and answers"
-    print(f"Evaluating '{args.config}' ({mode})...")
-    run_dir = run(args.config, retrieval_only=args.retrieval_only, split=args.split)
+    print(f"Evaluating '{args.config}' on {args.dataset} ({mode})...")
+    run_dir = run(
+        args.config, retrieval_only=args.retrieval_only, split=args.split, dataset=args.dataset
+    )
     print(f"Run saved to {run_dir.relative_to(run_dir.parents[2])}")
     print((run_dir / "summary.md").read_text(encoding="utf-8"))
 
@@ -373,6 +375,12 @@ def main() -> None:
     evaluate.add_argument("config", nargs="?", default="baseline", choices=sorted(CONFIGS))
     evaluate.add_argument("--retrieval-only", action="store_true", help="skip answer generation")
     evaluate.add_argument("--split", choices=["dev", "test"], help="only this split")
+    evaluate.add_argument(
+        "--dataset",
+        default="golden",
+        choices=["golden", "variants"],
+        help="golden: the 78 questions (default); variants: the same questions reworded",
+    )
 
     sub.add_parser("build", help="build the temporal model (events and article versions)")
     sub.add_parser("rulings", help="MK ruling points as the answer step reads them, for review")

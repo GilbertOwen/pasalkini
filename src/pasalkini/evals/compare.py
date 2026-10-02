@@ -13,7 +13,7 @@ from pasalkini.evals.metrics import (
     score,
     table,
 )
-from pasalkini.evals.schema import load_golden
+from pasalkini.evals.schema import load_all
 
 
 def reciprocal_rank(result: ItemResult, expected: list[str]) -> float | None:
@@ -28,7 +28,7 @@ def reciprocal_rank(result: ItemResult, expected: list[str]) -> float | None:
 
 def load_run(run_dir: Path) -> tuple[dict, list[ItemResult]]:
     meta = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
-    items = {item.id: item for item in load_golden()}
+    items = load_all()
     results = []
     for line in (run_dir / "outputs.jsonl").read_text(encoding="utf-8").splitlines():
         result = ItemResult.model_validate_json(line)
@@ -59,7 +59,7 @@ COLUMNS = [
 
 
 def compare(run_dirs: list[Path], split: str | None = None, category: str | None = None) -> str:
-    items = {item.id: item for item in load_golden()}
+    items = load_all()
     lines = ["| " + " | ".join(COLUMNS) + " |", "|" + "---|" * len(COLUMNS)]
     for run_dir in run_dirs:
         meta, results = load_run(run_dir)
@@ -101,7 +101,7 @@ def funnel(run_dir: Path) -> str:
     """Where questions that have an expected source are lost: the source never reached the
     context (retrieval), or it did and the answer did not cite it (the answer step, which
     includes wrong abstentions)."""
-    items = {item.id: item for item in load_golden()}
+    items = load_all()
     _, results = load_run(run_dir)
     rows = []
     for label, group in groups(results):

@@ -26,8 +26,8 @@ from pasalkini.answer.generate import generate
 from pasalkini.answer.llm import unload
 from pasalkini.answer.pipeline import Pipeline
 from pasalkini.evals.metrics import ItemResult, percent, pipeline_table, score, summary_table
-from pasalkini.evals.schema import EvalItem, load_golden
-from pasalkini.paths import EVALS_DIR, GOLDEN_PATH, ROOT
+from pasalkini.evals.schema import EvalItem, load_all, load_items
+from pasalkini.paths import EVALS_DIR, GOLDEN_PATH, ROOT, VARIANTS_PATH
 from pasalkini.pipelines import CONFIGS, PipelineConfig, load_chunks
 from pasalkini.retrieve.dense import DenseIndex
 from pasalkini.retrieve.hybrid import expand_query
@@ -208,7 +208,8 @@ def write_summary(run_dir: Path, meta: dict, results: list[ItemResult]) -> None:
         f"- Models: {models}",
         f"- Git commit: {commit}",
         f"- Corpus: {corpus['chunks']} chunks, fingerprint `{corpus['fingerprint']}`",
-        f"- Dataset: {dataset['items']} items, sha256 `{dataset['sha256'][:12]}`",
+        f"- Dataset: {dataset.get('name', 'golden')}, {dataset['items']} items, sha256 "
+        f"`{dataset['sha256'][:12]}`",
         f"- Mode: {mode}" + (f", {meta['split']} split only" if meta.get("split") else ""),
     ]
     if "rescored" in meta:
@@ -307,7 +308,21 @@ def write_grading_sheet(run_dir: Path, results: list[ItemResult]) -> None:
             )
 
 
-def run(config_name: str, retrieval_only: bool = False, split: str | None = None) -> Path:
+def dataset_sha256(dataset: str) -> str:
+    """Of the files the dataset is made of. The variants take their keys from the golden set."""
+    digest = hashlib.sha256(GOLDEN_PATH.read_bytes())
+    if dataset == "variants":
+        digest.update(VARIANTS_PATH.read_bytes())
+    return digest.hexdigest()
+
+
+def run(
+    config_name: str,
+    retrieval_only: bool = False,
+    split: str | None = None,
+    dataset: str = "golden",
+) -> Path:
+    """`dataset`: 'golden' (the 78 questions) or 'variants' (the same questions reworded)."""
     config = CONFIGS[config_name]
     verified = config.answer_mode != "baseline"
     if verified and retrieval_only:
@@ -315,9 +330,9 @@ def run(config_name: str, retrieval_only: bool = False, split: str | None = None
             f"{config.name} asks the chat model what kind of question it is before searching, "
             "so it has no retrieval-only mode. Use temporal-hybrid for retrieval alone."
         )
-    items = [item for item in load_golden() if split is None or item.split == split]
+    items = [item for item in load_items(dataset) if split is None or item.split == split]
     # Fingerprint what was loaded: the file may be edited while a long run is going.
-    dataset_sha = hashlib.sha256(GOLDEN_PATH.read_bytes()).hexdigest()
+    dataset_sha = dataset_sha256(dataset)
     chunks = load_chunks(config)
     if not chunks:
         raise SystemExit("No parsed documents. Run `uv run pasalkini parse` first.")
@@ -344,7 +359,8 @@ def run(config_name: str, retrieval_only: bool = False, split: str | None = None
 
     git = git_state()  # the code this run executes is the code on disk now, not at the end
     started_at = datetime.now()
-    suffix = ("-retrieval" if retrieval_only else "") + (f"-{split}" if split else "")
+    suffix = "" if dataset == "golden" else f"-{dataset}"
+    suffix += ("-retrieval" if retrieval_only else "") + (f"-{split}" if split else "")
     run_dir = RUNS_DIR / f"{started_at:%Y%m%d-%H%M%S}-{config.name}{suffix}"
     run_dir.mkdir(parents=True)
 
@@ -396,6 +412,7 @@ def run(config_name: str, retrieval_only: bool = False, split: str | None = None
             "newly_embedded": index.newly_embedded,
         },
         "dataset": {
+            "name": dataset,
             "items": len(items),
             "reviewed": sum(i.review == "done" for i in items),
             "sha256": dataset_sha,
@@ -417,7 +434,7 @@ def rescore(run_dir: Path) -> Path:
     already hold hand grades.
     """
     meta = json.loads((run_dir / "config.json").read_text(encoding="utf-8"))
-    items = {item.id: item for item in load_golden()}
+    items = load_all()
     results = []
     for line in (run_dir / "outputs.jsonl").read_text(encoding="utf-8").splitlines():
         result = ItemResult.model_validate_json(line)
@@ -427,8 +444,8 @@ def rescore(run_dir: Path) -> Path:
             results.append(score(result, items[result.id]))
     meta["rescored"] = {
         "at": datetime.now().isoformat(timespec="seconds"),
-        "dataset_sha256": hashlib.sha256(GOLDEN_PATH.read_bytes()).hexdigest(),
-        "reviewed": sum(i.review == "done" for i in items.values()),
+        "dataset_sha256": dataset_sha256(meta["dataset"].get("name", "golden")),
+        "reviewed": sum(r.reviewed for r in results),
         "items_scored": len(results),
     }
     (run_dir / "config.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")

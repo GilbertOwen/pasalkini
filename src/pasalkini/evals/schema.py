@@ -18,7 +18,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from pasalkini.paths import GOLDEN_PATH
+from pasalkini.paths import GOLDEN_PATH, VARIANTS_PATH
 
 ITEM_ID_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*$"
 SOURCE_ID_PATTERN = r"^[a-z0-9]+(-[a-z0-9]+)*(/[a-z0-9]+(-[a-z0-9]+)*)*$"
@@ -82,19 +82,84 @@ class EvalItem(BaseModel):
         return {sid.split("/")[0] for sid in self.expected_sources + self.must_not_cite}
 
 
+class Variant(BaseModel):
+    """A question of the evaluation set asked in other words (evals/datasets/variants.jsonl).
+
+    Only the wording is new. The date, the expected sources and the key come from the original,
+    so a variant adds no legal claim that needs checking: what needs checking is that it asks the
+    same thing.
+
+    - istilah: another word for the same thing ('kontrak kerja waktu tertentu', 'cuti panjang',
+      'UMR', 'resign')
+    - santai: the way people type it ('berapa lama sih', 'kasih', 'kena PHK')
+    - cerita: the question inside a short account of the asker's situation
+    - susunan: the same words in another order, or as a request instead of a question
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str = Field(pattern=ITEM_ID_PATTERN)
+    variant_of: str = Field(pattern=ITEM_ID_PATTERN)
+    style: Literal["istilah", "santai", "cerita", "susunan"]
+    question: str = Field(min_length=10)
+
+
+DATASETS = ("golden", "variants")
+
+
 class GoldenFileError(ValueError):
     pass
 
 
-def load_golden(path: Path = GOLDEN_PATH) -> list[EvalItem]:
-    """Load the JSONL file; errors name the line number."""
-    items: list[EvalItem] = []
+def _read(path: Path, model: type[BaseModel]) -> list:
+    """Load a JSONL file; errors name the line number."""
+    found = []
     with path.open(encoding="utf-8") as f:
         for line_number, line in enumerate(f, start=1):
             if not line.strip():
                 continue
             try:
-                items.append(EvalItem.model_validate(json.loads(line)))
+                found.append(model.model_validate(json.loads(line)))
             except (json.JSONDecodeError, ValidationError) as exc:
                 raise GoldenFileError(f"{path.name} line {line_number}: {exc}") from exc
+    return found
+
+
+def load_golden(path: Path = GOLDEN_PATH) -> list[EvalItem]:
+    return _read(path, EvalItem)
+
+
+def read_variants(path: Path = VARIANTS_PATH) -> list[Variant]:
+    return _read(path, Variant)
+
+
+def load_variants(
+    path: Path = VARIANTS_PATH, originals: list[EvalItem] | None = None
+) -> list[EvalItem]:
+    """Each variant as an evaluation item: the original with another ID and wording."""
+    by_id = {item.id: item for item in (originals if originals is not None else load_golden())}
+    items = []
+    for variant in read_variants(path):
+        if variant.variant_of not in by_id:
+            raise GoldenFileError(f"{path.name}: {variant.id} is a variant of an unknown item")
+        original = by_id[variant.variant_of]
+        note = f"Variant ({variant.style}) of {original.id}."
+        items.append(
+            original.model_copy(
+                update={"id": variant.id, "question": variant.question, "notes": note}
+            )
+        )
     return items
+
+
+def load_items(dataset: str = "golden") -> list[EvalItem]:
+    if dataset not in DATASETS:
+        raise ValueError(f"unknown dataset '{dataset}'; choose from {', '.join(DATASETS)}")
+    return load_golden() if dataset == "golden" else load_variants()
+
+
+def load_all() -> dict[str, EvalItem]:
+    """Every item of every dataset by ID, for scoring a saved run whatever it was run on."""
+    golden = load_golden()
+    variants = load_variants(originals=golden) if VARIANTS_PATH.exists() else []
+    return {item.id: item for item in [*golden, *variants]}

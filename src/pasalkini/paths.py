@@ -15,3 +15,4 @@ PROCESSED_DIR = DATA_DIR / "processed"
 
 EVALS_DIR = ROOT / "evals"
 GOLDEN_PATH = EVALS_DIR / "datasets" / "golden.jsonl"
+VARIANTS_PATH = EVALS_DIR / "datasets" / "variants.jsonl"

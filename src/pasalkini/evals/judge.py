@@ -27,7 +27,7 @@ from pasalkini.answer.llm import ChatOptions, chat_json
 from pasalkini.answer.understand import Chat
 from pasalkini.evals.compare import load_run
 from pasalkini.evals.metrics import ItemResult, table
-from pasalkini.evals.schema import EvalItem, load_golden
+from pasalkini.evals.schema import EvalItem, load_all
 from pasalkini.pipelines import CONFIGS
 from pasalkini.temporal.query import format_date
 
@@ -144,7 +144,7 @@ def judge_run(run_dir: Path, split: str | None = None, chat: Chat = chat_json) -
     """Judge every answer of a saved run (or of one split) and write judge.csv beside it."""
     config = CONFIGS["pasalkini"]
     options = ChatOptions(config.chat_model, 0.0, config.seed, config.num_ctx, 500, False)
-    items = {item.id: item for item in load_golden()}
+    items = load_all()
     _, results = load_run(run_dir)
     chosen = [r for r in results if split is None or r.split == split]
     path = run_dir / ("judge.csv" if split is None else f"judge-{split}.csv")

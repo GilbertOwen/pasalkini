@@ -139,13 +139,26 @@ def provision_pairs(text: str) -> list[str]:
     return list(dict.fromkeys(found))
 
 
+def instruments_in(text: str) -> list[str]:
+    """Instruments named with their number, as IDs: 'UU 13/2003' → 'uu-13-2003'."""
+    found = [
+        f"{KINDS[' '.join(m.group(1).lower().split())]}-{m.group(2)}-{m.group(3)}"
+        for m in re.finditer(INSTRUMENT, text, re.IGNORECASE)
+    ]
+    return list(dict.fromkeys(found))
+
+
 def named_provisions(question: str) -> list[str]:
-    """Articles named with their instrument; 'Pasal 59' alone means UU 13/2003, the article
-    numbers people quote for labor law."""
+    """Articles named with their instrument. An article named apart from it belongs to the one
+    instrument the question names ('Pasal 90 UU Ketenagakerjaan (UU 13/2003)'); with none
+    named, 'Pasal 59' means UU 13/2003, the article numbers people quote for labor law. With
+    several instruments and no pairing, nothing is assumed."""
     found = provision_pairs(question)
-    if not found and not re.search(INSTRUMENT, question, re.IGNORECASE):
+    instruments = instruments_in(question)
+    if not found and len(instruments) <= 1:
+        instrument = instruments[0] if instruments else "uu-13-2003"
         found = [
-            f"uu-13-2003/pasal-{m.group(1).lower()}"
+            f"{instrument}/pasal-{m.group(1).lower()}"
             for m in re.finditer(ARTICLE, question, re.IGNORECASE)
         ]
     return list(dict.fromkeys(found))
