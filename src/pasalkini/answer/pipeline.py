@@ -279,6 +279,7 @@ class Outcome:
     trimmed: bool = False  # the model's sentences after the opening failed the checks twice
     salvaged: bool = False  # the selection reply was cut off; its quotes were read from the start
     reread: bool = False  # the answer said no rule exists and was asked again with whole articles
+    absent: bool = False  # the answer shown says that no rule exists on the date
     said: str = ""  # the model's sentences; empty when it wrote none or found no answer
     declined: str = ""  # what the model said it could not find
     dispute: bool = False  # the model read the question as about the asker's own dispute
@@ -626,6 +627,11 @@ class Pipeline:
             tables = table_articles(u.as_of) if about_severance(question) else []
             named = list(dict.fromkeys(u.provisions + tables))
             hits = self.search(question, query_vector, u)
+            if u.intent == "riwayat":
+                # What changed can only be read from an article that changed. Asked in
+                # everyday words, the search fills the context with a regulation's articles
+                # on the topic, which have one wording each.
+                hits.sort(key=lambda c: self.wording_count(c.provision_id, u.as_of) < 2)
             outcome.context = gather(
                 self.library, hits, named, sources, u.as_of, u.history, self.config.top_k
             )
@@ -897,6 +903,7 @@ class Pipeline:
                 outcome.said = without_amounts(outcome.said)  # code has stated the amounts
             if outcome.reread:
                 self.cite_basis(outcome, final.dasar)
+            outcome.absent = self.says_no_rule(final, outcome)
         self.keep_or_trim(outcome)
         note(problems=outcome.answer_problems, still=outcome.ungrounded, declined=outcome.declined)
 
@@ -1025,26 +1032,32 @@ class Pipeline:
         self.compose(outcome)
         if not outcome.said and not outcome.lead and self.reselect(outcome):
             self.compose(outcome)
-        if not outcome.said and not outcome.lead:
+        if (not outcome.said and not outcome.lead) or outcome.absent:
+            # 'No rule on that date' may be 'not yet': see whether one began afterwards.
             self.look_later(outcome)
 
     def state_later(self, outcome: Outcome) -> None:
         """Nothing applied on the date, and articles that began later cover the question: say
         when the earliest of them began."""
         u = outcome.understanding
-        firsts = [self.library.by_provision[p.chunk.provision_id][0] for p in outcome.later]
-        first = min(firsts, key=lambda chunk: chunk.valid_from)
-        name, by = label(first), self.library.instrument(first.source_id, self.today)
-        source = "" if name.startswith(by) else f" ({by})"
         outcome.answer = (
             "Saya tidak menemukan ketentuan tentang hal ini di antara peraturan yang berlaku "
-            f"pada {format_date(u.as_of)}. Ketentuan yang mengaturnya dalam sumber PasalKini, "
-            f"{name}, baru berlaku sejak {format_date(first.valid_from)}{source}, jadi belum "
-            "berlaku pada tanggal itu."
+            f"pada {format_date(u.as_of)}. {self.began_later(outcome)}"
         )
         outcome.passages = []  # what was found for the date did not answer the question
         outcome.caveats.append(LATER_CAVEAT)
         outcome.confidence = "sedang"
+
+    def began_later(self, outcome: Outcome) -> str:
+        """The sentence that says when the earliest of the later articles began."""
+        firsts = [self.library.by_provision[p.chunk.provision_id][0] for p in outcome.later]
+        first = min(firsts, key=lambda chunk: chunk.valid_from)
+        name, by = label(first), self.library.instrument(first.source_id, self.today)
+        source = "" if name.startswith(by) else f" ({by})"
+        return (
+            f"Ketentuan yang mengaturnya dalam sumber PasalKini, {name}, baru berlaku sejak "
+            f"{format_date(first.valid_from)}{source}, jadi belum berlaku pada tanggal itu."
+        )
 
     def finish(self, outcome: Outcome) -> None:
         """Compose what is shown: the opening sentence by code, the model's sentences, the
@@ -1083,6 +1096,11 @@ class Pipeline:
             outcome.caveats.append(
                 "Sebagian kutipan yang dipilih model tidak lolos pemeriksaan dan tidak dipakai."
             )
+            confidence = "sedang"
+        if outcome.absent and outcome.later:
+            # The model found no rule on the date, and one began afterwards: code says when.
+            outcome.answer += " " + self.began_later(outcome)
+            outcome.caveats.append(LATER_CAVEAT)
             confidence = "sedang"
         if NO_BASIS in outcome.ungrounded:
             confidence = "rendah"

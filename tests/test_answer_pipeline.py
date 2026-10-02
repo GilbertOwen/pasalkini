@@ -521,10 +521,28 @@ def test_a_history_question_without_a_named_article_gets_the_timeline_of_what_it
     chat = ScriptedChat(intent="riwayat", selections=[PICKS_OLD])
     outcome = run(chat, "Apa yang berubah soal lembur setelah Cipta Kerja?", TODAY)
     ids = [c.source_id for c in outcome.context]
-    # The rest-day article ranks first, then both wordings of the overtime article, oldest first.
-    assert ids[:3] == [REST.source_id, OLD.source_id, NEW.source_id]
+    # The search ranks the rest-day article first, but it never changed. What changed can only
+    # be read from an article that did: both wordings of the overtime article come first, oldest
+    # first.
+    assert ids[:3] == [OLD.source_id, NEW.source_id, REST.source_id]
     assert outcome.timeline.startswith("Riwayat UU 13/2003 Pasal 78:")
     assert outcome.lead is None and outcome.answer == SAID
+
+
+def test_a_rule_the_model_finds_absent_is_reported_with_when_it_began():
+    # Read in full, the article of the date has no such rule. One began later: code says when.
+    none = "Tidak ada ketentuan tentang uang kompensasi dalam pasal ini."
+    later = picks((COMPENSATION.source_id, "uang kompensasi diberikan dengan ketentuan"))
+    chat = ScriptedChat(selections=[PICKS_OLD, later], answers=[says(none)])
+    outcome = run(chat, "Apakah pekerja kontrak berhak uang kompensasi saat kontrak berakhir?")
+    assert outcome.absent and not outcome.abstained
+    assert outcome.answer == (
+        f"{none} Ketentuan yang mengaturnya dalam sumber PasalKini, PP 35/2021 Pasal 16, baru "
+        "berlaku sejak 2 Februari 2021, jadi belum berlaku pada tanggal itu."
+    )
+    assert outcome.confidence == "sedang"
+    assert "sumber PasalKini, yang tidak memuat semua peraturan" in outcome.display()
+    assert "Aturan yang berlaku kemudian:\n- PP 35/2021 Pasal 16" in outcome.display()
 
 
 EFFICIENCY = "Kalau saya di-PHK karena perusahaan efisiensi, berapa kali ketentuan uang pesangon?"
