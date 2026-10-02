@@ -48,10 +48,12 @@ from pasalkini.answer.verify import (
     check_selection,
     dates_in,
     expand,
+    locate_basis,
     opening,
     places,
     provisions_of,
     quote_in,
+    salvage,
     same_places,
     shown,
     ungrounded,
@@ -220,6 +222,25 @@ AMOUNT_TALK = re.compile(
     re.IGNORECASE,
 )
 
+# An answer that says the law has no rule on something: 'Tidak ada batas maksimal …', '… tanpa
+# membatasi durasinya'. A few quoted lines cannot carry that: the model quoted Pasal 59 ayat (3)
+# and concluded that fixed-term contracts have no maximum length, which ayat (4) sets. Such an
+# answer gets a second look with the quoted articles in full. Withholding it instead, so that
+# the model picks other quotes, was tried and made things worse: 'there is no duty' can be the
+# right reading of 'dapat', and the second pick left the right article.
+NO_RULE = re.compile(
+    r"\b(?:tidak|belum) (?:ada|terdapat|ditemukan)\b[^.]{0,40}?\b"
+    r"(?:batas|batasan|ketentuan|aturan|peraturan|pengaturan|larangan|jaminan|kewajiban)\b"
+    r"|\btidak (?:diatur|mengatur|membatasi|menentukan|memuat|menyebut\w*)\b"
+    r"|\btanpa (?:membatasi|batas)\b",
+    re.IGNORECASE,
+)
+WHOLE_TASK = (
+    "KUTIPAN di bawah memuat bunyi lengkap pasal yang dikutip. Baca seluruh ayatnya sebelum "
+    "menjawab: ayat lain dalam pasal yang sama dapat memuat batas, syarat atau kewajiban yang "
+    "ditanyakan."
+)
+
 CALCULATION_TASK = (
     "KALIMAT PEMBUKA sudah menyebut hasil hitungan. Jika PERTANYAAN juga menanyakan hal lain, "
     "jawab hal itu dari KUTIPAN; jika tidak, tambahkan 1 kalimat tentang syarat atau hak lain "
@@ -256,6 +277,8 @@ class Outcome:
     rewritten: bool = False  # the answer was written a second time after the checks
     reselected: bool = False  # the model picked again after finding no answer in its passages
     trimmed: bool = False  # the model's sentences after the opening failed the checks twice
+    salvaged: bool = False  # the selection reply was cut off; its quotes were read from the start
+    reread: bool = False  # the answer said no rule exists and was asked again with whole articles
     said: str = ""  # the model's sentences; empty when it wrote none or found no answer
     declined: str = ""  # what the model said it could not find
     dispute: bool = False  # the model read the question as about the asker's own dispute
@@ -382,6 +405,21 @@ def shown_passages(library: Library, passages: list[Passage]) -> list[tuple[Chun
             if len(lines) == 2 and chunk.source_id.startswith(IMPLEMENTING):
                 lines.append(LOWER_RANK)
     return [(chunk, ayat, "\n".join(lines)) for chunk, ayat, lines in blocks]
+
+
+def whole_articles(library: Library, passages: list[Passage], max_chars: int) -> list[str]:
+    """The quoted articles in full, one block each: title, text as it reads after any ruling
+    that strikes words from it, and what the Constitutional Court ruled about it."""
+    blocks: dict[int, str] = {}
+    for passage in passages:
+        chunk = passage.chunk
+        if id(chunk) in blocks:
+            continue
+        body = body_of(chunk)
+        text = as_ruled(library, chunk, body if len(body) <= max_chars else body[:max_chars] + " …")
+        rulings = [f"Putusan MK: {ruling}" for ruling in rulings_read(library, chunk, set())]
+        blocks[id(chunk)] = "\n".join([chunk.title, text, *rulings])
+    return list(blocks.values())
 
 
 def task_for(outcome: Outcome) -> str | None:
@@ -617,6 +655,11 @@ class Pipeline:
         ]
         for attempt in (1, 2):
             reply = self.chat(self.select_options, messages, Selection)
+            if reply.parsed is None:
+                # Cut off, usually by a quote that copies a whole table. Asking again gets the
+                # same table; the start of each quote is enough to find its passage.
+                reply.parsed = salvage(reply.raw)
+                outcome.salvaged = outcome.salvaged or reply.parsed is not None
             outcome.selections.append(reply)
             outcome.asked = [*messages, {"role": "assistant", "content": reply.raw}]
             if reply.parsed is None:
@@ -838,12 +881,13 @@ class Pipeline:
         texts = [text for _, _, text in blocks]
         outcome.material = answer_message(outcome, texts, task_for(outcome))
         provisions = set().union(*(provisions_of(p.chunk) for p in outcome.passages))
-        final: Answer | None = self.checked_twice(
-            outcome,
-            ANSWER_PROMPT,
-            Answer,
-            lambda reply: self.problems_of(reply, outcome, provisions),
-        )
+
+        def problems_of(reply: Reply) -> list[str]:
+            return self.problems_of(reply, outcome, provisions)
+
+        final: Answer | None = self.checked_twice(outcome, ANSWER_PROMPT, Answer, problems_of)
+        if self.says_no_rule(final, outcome):
+            final = self.reread(outcome, texts, problems_of) or final
         outcome.said = outcome.declined = ""
         if final is not None and final.abstain:
             outcome.declined = final.answer.strip()
@@ -851,8 +895,49 @@ class Pipeline:
             outcome.said, outcome.dispute = final.answer.strip(), final.perselisihan
             if outcome.calculation is not None and outcome.lead:
                 outcome.said = without_amounts(outcome.said)  # code has stated the amounts
+            if outcome.reread:
+                self.cite_basis(outcome, final.dasar)
         self.keep_or_trim(outcome)
         note(problems=outcome.answer_problems, still=outcome.ungrounded, declined=outcome.declined)
+
+    def says_no_rule(self, answer: Answer | None, outcome: Outcome) -> bool:
+        """The answer is that the law has no rule on the matter. Not asked of status and history
+        questions (code states those), nor after an opening by code."""
+        if answer is None or answer.abstain or outcome.lead or outcome.understanding.history:
+            return False
+        return bool(NO_RULE.search(answer.answer))
+
+    def reread(self, outcome: Outcome, shown_texts: list[str], problems_of) -> Answer | None:
+        """A second look at an answer that says no rule exists: the same question, with the
+        quoted articles in full instead of the quoted lines. Whatever it then answers is taken,
+        'no rule' included: it has read the article. None when there is nothing more to read,
+        or the second reply is not usable."""
+        whole = whole_articles(self.library, outcome.passages, self.config.max_chars_per_chunk)
+        if sum(map(len, whole)) <= sum(map(len, shown_texts)):
+            return None
+        before = (outcome.material, outcome.answer_problems, outcome.ungrounded)
+        outcome.material = answer_message(outcome, whole, WHOLE_TASK)
+        outcome.reread = True
+        again: Answer | None = self.checked_twice(outcome, ANSWER_PROMPT, Answer, problems_of)
+        if again is None:
+            outcome.material, outcome.answer_problems, outcome.ungrounded = before
+        return again
+
+    def cite_basis(self, outcome: Outcome, basis: str | None) -> None:
+        """After a second look the answer may rest on other lines than the ones first quoted.
+        Where the words it says it rests on are found in a quoted article, they are what is
+        shown as the source."""
+        if not basis:
+            return
+        cited: dict[int, Passage] = {}
+        for passage in outcome.passages:
+            body = body_of(passage.chunk)
+            spans = locate_basis(body, basis) if id(passage.chunk) not in cited else []
+            if spans:
+                cited[id(passage.chunk)] = Passage(passage.chunk, shown(body, spans), spans)
+        if cited:
+            others = [p for p in outcome.passages if id(p.chunk) not in cited]
+            outcome.passages = [*cited.values(), *others]
 
     @traced("answer")
     def compare(self, outcome: Outcome) -> bool:

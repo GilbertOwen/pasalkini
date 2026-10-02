@@ -298,6 +298,86 @@ def test_an_answer_that_finds_nothing_in_its_passages_abstains():
     assert "Kutipan terdekat yang ditemukan:\n- UU 13/2003 Pasal 78" in outcome.display()
 
 
+PASAL_59 = dated(
+    "uu-13-2003/pasal-59",
+    "uu-13-2003/pasal-59",
+    "(1) Perjanjian kerja untuk waktu tertentu hanya dapat dibuat untuk pekerjaan tertentu.\n"
+    "(2) Perjanjian kerja untuk waktu tertentu tidak dapat diadakan untuk pekerjaan tetap.\n"
+    "(3) Perjanjian kerja untuk waktu tertentu dapat diperpanjang atau diperbaharui.\n"
+    "(4) Perjanjian kerja waktu tertentu yang didasarkan atas jangka waktu tertentu dapat "
+    "diadakan untuk paling lama 2 (dua) tahun dan hanya boleh diperpanjang 1 (satu) kali untuk "
+    "jangka waktu paling lama 1 (satu) tahun.",
+    "2003-03-25",
+    title="UU 13/2003 Pasal 59 (berlaku sejak 25 Maret 2003)",
+)
+PICKS_EXTENSION = picks((PASAL_59.source_id, "dapat diperpanjang atau diperbaharui"))
+NO_LIMIT = "Tidak ada batas maksimal lama kontrak dalam peraturan yang berlaku."
+TWO_PLUS_ONE = "Paling lama 2 tahun, dan hanya boleh diperpanjang 1 kali untuk paling lama 1 tahun."
+
+
+def run_contract(chat):
+    index = DenseIndex("test", [PASAL_59], np.array([[1.0, 0.0]], np.float32), "test")
+    pipeline = Pipeline(CONFIG, [PASAL_59], index, None, chat=chat, today=TODAY)
+    return pipeline.run("Berapa lama maksimal kontrak kerja?", date(2019, 6, 1), QUERY)
+
+
+def test_an_answer_that_no_rule_exists_gets_a_second_look_at_the_whole_article():
+    # The quoted line cannot carry "there is no limit": the limit is in the next ayat.
+    basis = "(4) Perjanjian kerja waktu tertentu yang didasarkan atas jangka waktu tertentu"
+    chat = ScriptedChat(
+        selections=[PICKS_EXTENSION], answers=[says(NO_LIMIT), says(TWO_PLUS_ONE, dasar=basis)]
+    )
+    outcome = run_contract(chat)
+    assert outcome.reread and not outcome.abstained and not outcome.reselected
+    assert outcome.answer == TWO_PLUS_ONE and not outcome.ungrounded
+    first, second = [messages[-1]["content"] for messages in chat.named("Answer")]
+    assert "dapat diperpanjang atau diperbaharui" in first and "paling lama 2 (dua)" not in first
+    assert "paling lama 2 (dua) tahun" in second and "(1) Perjanjian kerja" in second
+    assert "TUGAS: KUTIPAN di bawah memuat bunyi lengkap pasal yang dikutip" in second
+    # The source shown is the line the answer now rests on, not the line first quoted.
+    (cited,) = outcome.citations
+    assert cited.source_id == PASAL_59.source_id and cited.quote.startswith("(4) Perjanjian")
+    assert len(chat.named("Selection")) == 1
+
+
+def test_a_second_look_that_still_finds_no_rule_is_the_answer():
+    # 'There is no duty' can be the right reading of 'dapat'. It is not withheld.
+    still = "Tidak ada ketentuan yang membatasi lamanya, menurut seluruh pasal itu."
+    chat = ScriptedChat(selections=[PICKS_EXTENSION], answers=[says(NO_LIMIT), says(still)])
+    outcome = run_contract(chat)
+    assert outcome.reread and not outcome.abstained and outcome.answer == still
+    assert len(chat.named("Answer")) == 2
+    assert outcome.citations[0].quote == "dapat diperpanjang atau diperbaharui"
+
+
+def test_with_nothing_more_to_read_there_is_no_second_look():
+    # The article is one line, and the answer step has already read all of it.
+    outcome = run(chat := ScriptedChat(selections=[PICKS_OLD], answers=[says(NO_LIMIT)]))
+    assert not outcome.reread and outcome.answer == NO_LIMIT
+    assert len(chat.named("Answer")) == 1
+
+
+def test_a_cut_off_selection_is_read_from_the_start_of_its_quotes():
+    scripted = ScriptedChat()
+    cut = (
+        '{"kutipan": [{"source_id": "[uu-13-2003/pasal-78]", "quote": "waktu kerja lembur hanya '
+        "dapat dilakukan paling banyak 3 (tiga) jam dalam 1 (sat"
+    )
+
+    def chat(options, messages, schema):
+        if schema is Selection:
+            scripted.calls.append((schema.__name__, list(messages)))
+            return Reply(None, cut, 10, 500, 0.0)
+        return scripted(options, messages, schema)
+
+    outcome = run(chat)
+    assert outcome.salvaged and not outcome.retried and not outcome.abstained
+    assert outcome.answer == SAID and outcome.json_ok
+    assert [c.source_id for c in outcome.citations] == [OLD.source_id]
+    assert outcome.citations[0].quote.endswith("3 (tiga) jam dalam 1")
+    assert len(scripted.named("Selection")) == 1  # not asked again
+
+
 def test_a_dispute_gets_the_fixed_referral():
     outcome = run(ScriptedChat(selections=[PICKS_OLD], answers=[says(SAID, perselisihan=True)]))
     assert outcome.referral.startswith("mediator hubungan industrial")

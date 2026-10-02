@@ -181,6 +181,8 @@ def evaluate_with_pipeline(
     result.rewritten = outcome.rewritten if outcome.drafts else None
     result.reselected = outcome.reselected if outcome.drafts else None
     result.trimmed = outcome.trimmed if outcome.drafts else None
+    result.salvaged = outcome.salvaged if outcome.selections else None
+    result.reread = outcome.reread if outcome.drafts else None
     result.answer_problems = outcome.answer_problems
     result.ungrounded = outcome.ungrounded
     result.later_sources = [passage.source_id for passage in outcome.later]
@@ -271,6 +273,9 @@ def write_summary(run_dir: Path, meta: dict, results: list[ItemResult]) -> None:
             "that it was not given (and, for history questions, no date); otherwise it was "
             "rewritten once. *Answer shown ungrounded*: the answer shown still does, and says "
             "so in a note.",
+            "- *Cut-off pick read*: the reply that picks quotes ran out of room, and its quotes "
+            "were read from their start. *Read again in full*: the answer said that no rule "
+            "exists, and was asked again with the quoted articles in full.",
         ]
     lines.append("")
     (run_dir / "summary.md").write_text("\n".join(lines), encoding="utf-8")

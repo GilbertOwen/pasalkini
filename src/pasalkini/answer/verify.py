@@ -39,6 +39,9 @@ MIN_NEAR_WORDS = 5  # shorter parts must match word for word
 MIN_RUN = 3  # a near match needs this many words in a row
 MAX_PASSAGE_CHARS = 1200
 MAX_BACK_REFERENCES = 2
+MAX_QUOTE_WORDS = 40  # what the selection prompt asks for
+# One citation of a selection reply, whether or not its quote was closed.
+CUT_CITATION = re.compile(r'"source_id"\s*:\s*"([^"]*)"\s*,\s*"quote"\s*:\s*"((?:[^"\\]|\\.)*)')
 # Where a quote may skip text: an ellipsis, or a colon ('… sebagai berikut: f. masa kerja 5 …'
 # quotes a table's opening line and one of its rows).
 GAP = re.compile(r"\s*(?:…|\.{3,}|:)\s*")
@@ -366,6 +369,35 @@ def expand(body: str, spans: list[tuple[int, int]]) -> tuple[str, set[str]]:
     if len(text) > MAX_PASSAGE_CHARS:
         text = text[:MAX_PASSAGE_CHARS] + " …"
     return text, {ayat_of[i] for i in quoted if ayat_of[i] is not None}
+
+
+def salvage(raw: str) -> Selection | None:
+    """What can be read of a selection whose JSON was cut off. Asked for one sentence, the model
+    sometimes copies a whole table and runs out of room before the reply closes. The start of a
+    quote is enough to find its passage, so each quote is kept to its first MAX_QUOTE_WORDS
+    words; of a quote that was cut, the last word is dropped: it may be half a word or half a
+    number."""
+    found = []
+    for match in CUT_CITATION.finditer(raw):
+        words = match.group(2).replace('\\"', '"').replace("\\n", " ").split()
+        if raw[match.end() : match.end() + 1] != '"':  # the quote never closed
+            words = words[:-1]
+        quote = " ".join(words[:MAX_QUOTE_WORDS])
+        if len(quote) >= MIN_QUOTE_CHARS:
+            found.append(Citation(source_id=match.group(1), quote=quote))
+    return Selection(kutipan=found) if found else None
+
+
+def locate_basis(body: str, basis: str) -> list[tuple[int, int]]:
+    """Where the words an answer says it rests on are in the article: the whole of them, or
+    else each of their sentences that can be found. Empty when none can."""
+    spans = find_spans(basis, body)
+    if spans is not None:
+        return spans
+    found: list[tuple[int, int]] = []
+    for piece in re.split(r"(?<=[.;])\s+", basis):
+        found += find_spans(piece, body) or []
+    return sorted(set(found))
 
 
 def clean_source_id(source_id: str) -> str:

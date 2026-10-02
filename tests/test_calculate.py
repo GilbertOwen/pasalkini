@@ -126,3 +126,12 @@ def test_one_stated_amount_is_the_wage():
     assert wages_in("upah Rp6.000.000 per bulan") == [6_000_000]
     assert wages_in("gaji Rp 4,5 juta dan THR Rp4.500.000,00") == [4_500_000]
     assert wages_in("upah Rp750 ribu seminggu, lalu Rp3 juta sebulan") == [750_000, 3_000_000]
+
+
+def test_rights_after_a_dismissal_are_asked_about_in_more_than_one_way():
+    from pasalkini.answer.calculate import may_calculate
+
+    assert may_calculate("Apa saja hak pekerja yang mengundurkan diri atas kemauan sendiri?")
+    assert may_calculate("Kalau saya resign atas keinginan sendiri, saya dapat apa saja?")
+    assert may_calculate("Karyawan yang di-PHK menerima apa saja dari perusahaan?")
+    assert not may_calculate("Kalau saya resign, apakah saya dapat bekerja di perusahaan pesaing?")

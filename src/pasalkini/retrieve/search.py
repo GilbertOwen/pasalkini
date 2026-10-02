@@ -12,7 +12,12 @@ from pasalkini.retrieve.lexical import BM25Index
 Hits = list[tuple[Chunk, float]]
 Search = Callable[[Callable[[Chunk], bool] | None], Hits]
 
-FUSION_POOL = 20  # candidates taken from each ranking before fusion
+# Candidates taken from each ranking before fusion. A question in everyday words ('kontrak saya
+# habis', 'gaji sesuai UMR') ranks the right article well in one ranking and far down the other;
+# with 20 candidates it then counted in one only, and lost to articles that were mediocre in
+# both. On the reworded development questions 20 finds an expected source in the top 5 for 30 of
+# 37 questions, 50 for 32; the original questions are unchanged at 34 of 37.
+FUSION_POOL = 50
 
 
 def make_search(

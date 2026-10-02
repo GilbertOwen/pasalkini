@@ -45,7 +45,11 @@ DISMISSAL = re.compile(
     r"\b(?:PHK|pemutusan hubungan kerja|diberhentikan|dipecat|mengundurkan diri|resign|pensiun)\b",
     re.IGNORECASE,
 )
-ASKS_RIGHTS = re.compile(r"\b(?:hak|berhak|berapa)\b", re.IGNORECASE)
+# 'Apa saja hak saya?' is also asked as 'saya dapat apa saja?' and 'menerima apa saja?'.
+ASKS_RIGHTS = re.compile(
+    r"\b(?:hak|berhak|berapa|(?:dapat|mendapat|mendapatkan|terima|menerima) apa)\b",
+    re.IGNORECASE,
+)
 PKWT_COMPENSATION = re.compile(r"uang kompensasi", re.IGNORECASE)
 DURATION = re.compile(r"\d+\s*(?:bulan|tahun)", re.IGNORECASE)
 

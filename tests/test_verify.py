@@ -341,3 +341,43 @@ def test_dates_in_an_answer_are_found():
     answer = "Pasal itu dihapus sejak 2 November 2020 dan diganti pada 2022 oleh UU 13/2003."
     assert dates_in(answer) == ["2 November 2020", "pada 2022"]
     assert dates_in("Batasnya 4 jam sehari menurut PP 35/2021.") == []
+
+
+def test_a_cut_off_selection_keeps_the_start_of_each_quote():
+    from pasalkini.answer.verify import salvage
+
+    whole = (
+        '{"kutipan": [{"source_id": "uu-13-2003/pasal-59", "quote": "paling lama 2 (dua) tahun"}'
+    )
+    cut = (
+        whole
+        + ', {"source_id": "[pp-35-2021/pasal-40]", "quote": "(2) Uang pesangon diberikan deng'
+    )
+    selection = salvage(cut)
+    assert [(c.source_id, c.quote) for c in selection.kutipan] == [
+        ("uu-13-2003/pasal-59", "paling lama 2 (dua) tahun"),
+        ("[pp-35-2021/pasal-40]", "(2) Uang pesangon diberikan"),  # the half word is dropped
+    ]
+    long_quote = " ".join(f"kata{n}" for n in range(60))
+    kept = salvage('{"kutipan": [{"source_id": "x/pasal-1", "quote": "' + long_quote)
+    assert len(kept.kutipan[0].quote.split()) == 40
+    assert salvage('{"kutipan": [{"source_id": "x/pasal-1", "quote": "terlalu') is None
+    assert salvage("bukan JSON sama sekali") is None
+
+
+def test_the_words_an_answer_rests_on_are_found_whole_or_sentence_by_sentence():
+    from pasalkini.answer.verify import locate_basis, shown
+
+    body = (
+        "(3) Perjanjian kerja untuk waktu tertentu dapat diperpanjang atau diperbaharui.\n"
+        "(4) Perjanjian kerja waktu tertentu dapat diadakan untuk paling lama 2 (dua) tahun."
+    )
+    whole = "Perjanjian kerja waktu tertentu dapat diadakan untuk paling lama 2 (dua) tahun"
+    assert shown(body, locate_basis(body, whole)) == whole
+    # The model ran two ayat together and numbered the first one wrongly: the second is found.
+    mixed = (
+        "(4) Perjanjian kerja untuk waktu tertentu boleh diperpanjang lima kali. (4) Perjanjian "
+        "kerja waktu tertentu dapat diadakan untuk paling lama 2 (dua) tahun."
+    )
+    assert shown(body, locate_basis(body, mixed)).startswith("(4) Perjanjian kerja waktu tertentu")
+    assert locate_basis(body, "Upah minimum ditetapkan oleh gubernur setiap tahun.") == []
