@@ -445,6 +445,18 @@ def by_code(chunk: Chunk, spans: list[tuple[int, int]] | None = None) -> Passage
     return Passage(chunk, text, spans or [])
 
 
+def content_of(passage: Passage, intent: str) -> Passage:
+    """A quote of the line that says when an article applied is evidence for a status
+    question. For any other question it says nothing about the matter: asked what changed in
+    the overtime rules, the model quoted '(berlaku 25 Maret 2003 s.d. 1 November 2020)' and
+    '(berlaku sejak 30 Desember 2022)', and the answer step, given two dates, made up the
+    limits. The article's own text is used instead."""
+    if intent == "status" or passage.spans or not quote_in(passage.quote, passage.chunk.title):
+        return passage  # quoted from the text, or from the notes under it
+    body = body_of(passage.chunk)
+    return by_code(passage.chunk, [(0, len(body))])
+
+
 def sentence(text: str | None) -> str:
     text = (text or "").strip()
     return text if not text or text.endswith((".", "!", "?")) else text + "."
@@ -672,7 +684,8 @@ class Pipeline:
                 problems, passages, failed = [TOO_LONG], [], []
             else:
                 checked = check_selection(reply.parsed, outcome.context, u.as_of, u.history)
-                problems, passages, failed = checked.problems, checked.passages, checked.failed
+                problems, failed = checked.problems, checked.failed
+                passages = [content_of(passage, u.intent) for passage in checked.passages]
             if attempt == 1:
                 outcome.first_problems = problems
             # A repair that verifies nothing does not undo what the first attempt verified.

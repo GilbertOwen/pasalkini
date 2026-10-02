@@ -773,3 +773,19 @@ def test_rulings_and_standing_notes_on_a_cited_article_are_shown_by_code():
     assert outcome.confidence == "sedang"  # the article applies conditionally
     given = chat.named("Answer")[0][-1]["content"]
     assert "Putusan MK: Menurut Putusan MK 168" in given and "Pasal 184" not in given
+
+
+def test_a_quote_of_when_an_article_applied_is_not_evidence_of_what_it_says():
+    # Asked what changed, the model quotes the line that dates the old wording. The answer step
+    # gets the old wording itself.
+    dated_only = picks((OLD.source_id, OLD.title), (NEW.source_id, "paling lama 4 (empat) jam"))
+    chat = ScriptedChat(intent="riwayat", selections=[dated_only])
+    outcome = run(chat, "Apa yang berubah soal lembur setelah Cipta Kerja?", TODAY)
+    given = chat.named("Comparison")[0][-1]["content"]
+    assert f"BUNYI LAMA: {OLD.title}\n{THREE}" in given and FOUR in given
+    assert outcome.answer == COMPARED
+    assert outcome.citations[0].quote == THREE  # shown to the user: the wording, not its date
+    # For a status question the line that dates the wording is the evidence.
+    asked = ScriptedChat(intent="status", selections=[picks((OLD.source_id, OLD.title))])
+    kept = run(asked, "Apakah aturan lembur 3 jam masih berlaku?", date(2019, 6, 1))
+    assert kept.passages[0].quote == OLD.title and kept.passages[0].spans == []
