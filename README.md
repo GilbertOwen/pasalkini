@@ -143,7 +143,7 @@ Adding a law, regulation or MK ruling: [docs/runbook-new-instrument.md](docs/run
 | `evals/datasets/variants.jsonl` | The same questions in other words |
 | `evals/runs/` | One folder per evaluation run: config, summary, grading sheet, grades by reading and by the judge |
 | `evals/fixtures/retrieval.npz` | Snapshot of the corpus and question embeddings for the CI retrieval gate |
-| `docs/` | Evaluation results, architecture, runbook for a new instrument, parse and temporal-model reports, spot-check sheet |
+| `docs/` | Evaluation results, architecture, runbook for a new instrument, parse and temporal-model reports, spot-check sheet; drafts of the write-up (English and Indonesian) and of the dataset card |
 | `src/pasalkini/ingest/` | Download, PDF extraction, parsing |
 | `src/pasalkini/temporal/` | Events, version building, point-in-time queries |
 | `src/pasalkini/retrieve/`, `evals/` | Retrieval, evaluation |

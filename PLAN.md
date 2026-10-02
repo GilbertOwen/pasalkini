@@ -424,9 +424,9 @@ pasalkini/
 ### Phase 8: Portfolio launch (week 13)
 
 - [ ] README: the problem, a 60-second demo GIF, the architecture diagram, results (baseline vs PasalKini), how to run it, data and compliance (link to the legal review), limitations.
-- [ ] Publish the benchmark on Hugging Face with a dataset card: sources, dates, licence (for example CC BY 4.0), known limits.
+- [ ] Publish the benchmark on Hugging Face with a dataset card: sources, dates, licence (for example CC BY 4.0), known limits. *(Card drafted: `docs/dataset-card.md`. Not published: the keys are unreviewed, and publishing is the owner's decision.)*
 - [ ] Demo video (2–3 minutes): the same question at two dates with the answer switching, an article history, the calculator.
-- [ ] Write-up in English and Bahasa Indonesia: why RAG gives outdated legal answers and how PasalKini fixes it.
+- [ ] Write-up in English and Bahasa Indonesia: why RAG gives outdated legal answers and how PasalKini fixes it. *(Drafts: `docs/writeup.md`, `docs/writeup.id.md`. Not published.)*
 - [ ] Public hosting only after the public-demo checklist in the legal review (privacy notice, redaction, PSE registration).
 
 ### Phase 9 (stretch): fine-tuning (1–2 weeks)
