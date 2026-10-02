@@ -186,6 +186,7 @@ def evaluate_with_pipeline(
     result.answer_problems = outcome.answer_problems
     result.ungrounded = outcome.ungrounded
     result.later_sources = [passage.source_id for passage in outcome.later]
+    result.earlier_sources = [passage.source_id for passage in outcome.earlier]
     if isinstance(pipeline, Agent):
         result.agent_steps = outcome.steps
     result.calculation = outcome.calculation.text() if outcome.calculation else None
@@ -256,7 +257,8 @@ def write_summary(run_dir: Path, meta: dict, results: list[ItemResult]) -> None:
         "- *Recall@5*: share of expected sources found in the top 5 chunks (a document-level "
         "label is found by any chunk from that document).",
         "- *Stale text in top 5*: a `must_not_cite` source is among the chunks given to the model.",
-        "- *Answer cites stale source*: the answer's citations include a `must_not_cite` source.",
+        "- *Answer cites stale source*: the answer's citations include a `must_not_cite` source. "
+        "Citations are the sources of the answer: wordings that applied on the date.",
         "- *Cites an ID not in context*: the model invented or altered a source ID.",
     ]
     if pipeline:
@@ -276,6 +278,11 @@ def write_summary(run_dir: Path, meta: dict, results: list[ItemResult]) -> None:
             "- *Cut-off pick read*: the reply that picks quotes ran out of room, and its quotes "
             "were read from their start. *Read again in full*: the answer said that no rule "
             "exists, and was asked again with the quoted articles in full.",
+            "- *Earlier wording shown unasked*: the answer lists a wording that had ended by the "
+            "date, under its own heading, although the question is not about an article's "
+            "status or about change. It means the model took the question for one that is. "
+            "*Answer cites expected source* also counts an expected source shown as an earlier "
+            "wording.",
         ]
     lines.append("")
     (run_dir / "summary.md").write_text("\n".join(lines), encoding="utf-8")

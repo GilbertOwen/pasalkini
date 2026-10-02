@@ -8,6 +8,7 @@ question, the model or a document is escaped.
 import html
 from datetime import date
 
+from pasalkini.answer.pipeline import EARLIER_HEADING
 from pasalkini.temporal.query import diff_segments, format_date
 
 DISCLAIMER = (
@@ -80,6 +81,7 @@ def answer_html(payload: dict) -> str:
         parts.append("<h4>Riwayat (oleh program)</h4>" + legal(payload["timeline"]))
     parts.append(passages("Sumber", payload["citations"]))
     parts.append(passages("Kutipan terdekat yang ditemukan", payload["nearest"]))
+    parts.append(passages(EARLIER_HEADING, payload["earlier"]))
     parts.append(passages("Aturan yang berlaku kemudian", payload["later"]))
     if payload["changed_since"]:
         parts.append("<h4>Perubahan sesudah tanggal itu</h4>" + items(payload["changed_since"]))

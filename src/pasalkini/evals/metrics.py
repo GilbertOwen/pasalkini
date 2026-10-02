@@ -105,6 +105,9 @@ class ItemResult(BaseModel):
     answer_problems: list[str] = []  # what the first answer mentioned that it was not given
     ungrounded: list[str] = []  # ... and what the shown answer still does
     later_sources: list[str] = []  # law that began after the date, shown as such and not cited
+    # Wordings that had ended by the date, shown as such: the original of an article whose
+    # status was asked, the old side of a comparison. Not among the citations.
+    earlier_sources: list[str] = []
     agent_steps: list[str] | None = None  # agent only: the tools it used, in order
     calculation: str | None = None
 
@@ -156,7 +159,10 @@ def score(result: ItemResult, item: EvalItem) -> ItemResult:
         return result
     result.citations = extract_ids(result.citations_raw)
     result.invalid_citations = [c for c in result.citations if c not in result.context_ids]
-    result.cited_expected = any_expected(result.citations, item.expected_sources)
+    # The key of a status or history question may name the old wording: showing it as
+    # the earlier wording is what was expected.
+    shown = result.citations + result.earlier_sources
+    result.cited_expected = any_expected(shown, item.expected_sources)
     result.stale_cited = any_forbidden(result.citations, item.must_not_cite)
     if result.abstained is not None:
         result.abstain_ok = result.abstained == item.should_abstain
@@ -245,7 +251,9 @@ PIPELINE_HEADER = [
     "Answer shown ungrounded",
     "Cut-off pick read",
     "Read again in full",
+    "Earlier wording shown unasked",
 ]
+ASKS_ABOUT_THE_PAST = ("status", "what_changed")
 
 
 def pipeline_table(results: list[ItemResult]) -> list[str]:
@@ -267,6 +275,13 @@ def pipeline_table(results: list[ItemResult]) -> list[str]:
                 percent([bool(r.ungrounded) for r in written]),
                 percent([r.salvaged for r in answered]),
                 percent([r.reread for r in written]),
+                percent(
+                    [
+                        bool(r.earlier_sources)
+                        for r in group
+                        if r.category not in ASKS_ABOUT_THE_PAST
+                    ]
+                ),
             ]
         )
     return table(PIPELINE_HEADER, rows)

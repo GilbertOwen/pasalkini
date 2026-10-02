@@ -5,6 +5,7 @@ from pasalkini.evals.metrics import (
     extract_ids,
     matches,
     matches_expected,
+    pipeline_table,
     recall,
     score,
 )
@@ -81,6 +82,38 @@ def test_score_flags_a_stale_citation():
     assert scored.citations == ["pp-35-2021/pasal-8"]
     assert scored.stale_cited is True and scored.cited_expected is False
     assert scored.invalid_citations == []
+
+
+def test_an_ended_wording_shown_as_such_is_not_a_citation():
+    # The model took the question for one about status. The 2021 regulation is the source;
+    # the wording of 2003 is listed as what the law used to say.
+    asked = item(as_of="2022-06-01", must_not_cite=["uu-13-2003/pasal-59"], expected_sources=[])
+    shown = result(
+        json_ok=True, citations_raw=["pp-35-2021/pasal-8"], earlier_sources=["uu-13-2003/pasal-59"]
+    )
+    assert score(shown, asked).stale_cited is False
+    # Cited as a source, it counts.
+    cited = result(json_ok=True, citations_raw=["uu-13-2003/pasal-59"])
+    assert score(cited, asked).stale_cited is True
+    # A key that expects the old wording (a status question) is met by showing it.
+    status = item(category="status", must_not_cite=[])
+    assert score(shown, status).cited_expected is True
+
+
+def test_the_table_counts_earlier_wordings_shown_to_questions_that_did_not_ask():
+    rows = [
+        result(json_ok=True, abstained=False, earlier_sources=["uu-13-2003/pasal-59"]),
+        result(json_ok=True, abstained=False),
+        result(
+            json_ok=True,
+            abstained=False,
+            category="status",
+            earlier_sources=["uu-13-2003/pasal-59"],
+        ),
+    ]
+    header, _, everything, *_ = pipeline_table(rows)
+    assert header.split(" | ")[-1].rstrip(" |") == "Earlier wording shown unasked"
+    assert everything.split(" | ")[-1].rstrip(" |") == "50% (1/2)"
 
 
 def test_score_flags_an_invented_id():

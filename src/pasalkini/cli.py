@@ -323,6 +323,17 @@ def cmd_gate(_: argparse.Namespace) -> None:
         raise SystemExit(1)
 
 
+def cmd_misread(args: argparse.Namespace) -> None:
+    from pasalkini.evals.misread import run, totals
+
+    print(f"Every ordinary development question, read as '{args.kind}':")
+    results = run(args.kind)
+    for name, value in totals(results).items():
+        print(f"{name}: {value}")
+    if any(result.stale_cited for result in results):
+        raise SystemExit(1)
+
+
 def cmd_setup(args: argparse.Namespace) -> None:
     """Everything between a fresh clone and a running app: download, parse, build, index."""
     print("1/4 Download: the official PDFs (skipped where already downloaded)")
@@ -419,6 +430,10 @@ def main() -> None:
 
     sub.add_parser("gate", help="the CI check: retrieval on the committed snapshot (no Ollama)")
     sub.add_parser("fixture", help="remake the snapshot the gate compares against")
+    misread = sub.add_parser(
+        "misread", help="force a wrong reading of the question's kind; count stale citations"
+    )
+    misread.add_argument("kind", choices=["status", "riwayat"])
     sub.add_parser("setup", help="download, parse, build and index: from a fresh clone to ready")
     serve = sub.add_parser("serve", help="run the app: the API and the four screens")
     # 127.0.0.1: reachable from this machine only. The app has no login and no rate limit.
@@ -428,6 +443,7 @@ def main() -> None:
     args = parser.parse_args()
     handlers = {
         "gate": cmd_gate,
+        "misread": cmd_misread,
         "fixture": cmd_fixture,
         "setup": cmd_setup,
         "serve": cmd_serve,

@@ -85,7 +85,7 @@ def test_an_answer_comes_back_as_the_answer_contract(tmp_path):
             "valid_to": "2020-11-02",
         }
     ]
-    assert payload["nearest"] == [] and payload["later"] == []
+    assert payload["nearest"] == [] and payload["later"] == [] and payload["earlier"] == []
     assert "diubah sejak 2 November 2020" in payload["changed_since"][0]
     assert payload["looked_up"] and not payload["cached"] and payload["calculation"] is None
     assert set(payload["seconds"]) == {"understand", "retrieve", "select", "answer", "total"}

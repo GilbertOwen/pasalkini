@@ -98,11 +98,13 @@ def day_of(value: object) -> date | None:
 
 
 def chips(payload: dict) -> list[tuple[str, str]]:
-    """One choice per cited article: its name, and what to open (article and date). Law that
-    began after the question's date is opened as it stood when it began."""
+    """One choice per cited article: its name, and what to open (article and date). A wording
+    that had ended by the question's date, or began after it, is opened as it stood when it
+    began."""
     found: dict[str, str] = {}
     groups = [
         (payload["citations"] + payload["nearest"], None),
+        (payload["earlier"], "valid_from"),
         (payload["later"], "valid_from"),
     ]
     for passages, own_date in groups:

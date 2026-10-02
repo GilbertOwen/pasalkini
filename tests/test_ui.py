@@ -71,6 +71,22 @@ def test_law_that_began_later_is_opened_as_it_stood_when_it_began(tmp_path):
     assert "tidak ada dalam sumber PasalKini" in provision_html(None)
 
 
+def test_a_wording_that_had_ended_is_listed_apart_and_opened_as_it_stood(tmp_path):
+    service = make_service(tmp_path, ScriptedChat(intent="status"))
+    payload = service.ask("Apakah Pasal 78 UU 13/2003 masih berlaku?", None)
+    assert [p["source_id"] for p in payload["citations"]] == ["uu-11-2020/pasal-81/angka-22"]
+    assert [p["source_id"] for p in payload["earlier"]] == ["uu-13-2003/pasal-78"]
+    shown = answer_html(payload)
+    heading = "<h4>Bunyi sebelumnya (tidak berlaku lagi pada tanggal itu)</h4>"
+    assert shown.index("<h4>Sumber</h4>") < shown.index(heading)
+    assert shown.index(heading) < shown.index("paling banyak 3 (tiga) jam")
+    # The article can be opened in both wordings: today's, and the first as it stood in 2003.
+    assert chips(payload) == [
+        ("UU 13/2003 Pasal 78", "uu-13-2003/pasal-78@2026-10-01"),
+        ("UU 13/2003 Pasal 78", "uu-13-2003/pasal-78@2003-03-25"),
+    ]
+
+
 def test_a_conditional_article_is_marked(tmp_path):
     found = make_service(tmp_path).provision("uu-13-2003/pasal-78", date(2022, 1, 1))
     assert '<span class="pk-badge">berlaku bersyarat</span>' in provision_html(found)

@@ -4,6 +4,7 @@ from datetime import date
 
 import pytest
 from test_answer_pipeline import (
+    BEFORE_AND_NOW,
     CHUNKS,
     COMPENSATION,
     CONFIG,
@@ -21,7 +22,7 @@ from test_answer_pipeline import (
 from pasalkini.answer.agent import MAX_STEPS, Action, Agent
 from pasalkini.answer.llm import Reply
 from pasalkini.answer.pipeline import OUT_OF_SCOPE
-from pasalkini.answer.verify import Answer, Selection
+from pasalkini.answer.verify import Answer, Comparison, Selection
 from pasalkini.retrieve.dense import DenseIndex
 
 
@@ -39,6 +40,8 @@ class Script:
             parsed = self.selections.pop(0) if self.selections else picks()
         elif schema is Answer:
             parsed = self.answers.pop(0) if self.answers else says(SAID)
+        elif schema is Comparison:
+            parsed = BEFORE_AND_NOW
         else:
             parsed = schema.model_validate(self.facts)
         return Reply(parsed, parsed.model_dump_json(), 10, 5, 0.0)
@@ -77,7 +80,7 @@ def test_the_agent_searches_with_its_own_query_then_answers(embedded_on_cpu):
     assert [c.source_id for c in outcome.citations] == [OLD.source_id]
 
 
-def test_the_history_tool_shows_every_wording_and_lets_old_ones_be_cited():
+def test_the_history_tool_shows_every_wording_and_old_ones_are_shown_as_earlier():
     chat = Script(
         [Action(aksi="riwayat", pasal="Pasal 78 UU 13/2003"), Action(aksi="jawab")], [CITES_OLD]
     )
@@ -85,6 +88,9 @@ def test_the_history_tool_shows_every_wording_and_lets_old_ones_be_cited():
     assert [c.source_id for c in outcome.context] == [OLD.source_id, NEW.source_id]
     assert outcome.timeline.startswith("Riwayat UU 13/2003 Pasal 78:")
     assert outcome.understanding.intent == "riwayat" and not outcome.abstained
+    # The old wording it quoted is compared with the one that applied, and is not a source.
+    assert [c.source_id for c in outcome.citations] == [NEW.source_id]
+    assert [p.source_id for p in outcome.earlier] == [OLD.source_id]
 
 
 def test_a_refusal_ends_the_run_without_an_answer_call():

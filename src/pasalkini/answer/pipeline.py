@@ -206,6 +206,7 @@ OWN_LABEL = re.compile(
     r"^bunyi (?:lama|sekarang)\s*(?:mengatur|menyatakan|menyebutkan)?\s*(?:bahwa)?\s*[:,]?\s*",
     re.IGNORECASE,
 )
+EARLIER_HEADING = "Bunyi sebelumnya (tidak berlaku lagi pada tanggal itu)"
 TOO_LONG = "Jawaban terpotong atau bukan JSON yang valid."
 IMPLEMENTING = ("pp-", "permenaker-")  # regulations that carry out a law
 LOWER_RANK = (
@@ -251,6 +252,11 @@ STATUS_TASK = (
     "Jawab apakah aturan itu masih berlaku pada TANGGAL, menurut RIWAYAT PASAL dan KUTIPAN. "
     "Jangan menulis tanggal: program menampilkannya di bagian riwayat."
 )
+STATUS_STATED_TASK = (
+    "KALIMAT PEMBUKA sudah menyebut apakah pasalnya masih berlaku. Jawab PERTANYAAN dari "
+    "KUTIPAN, yaitu bunyi yang berlaku pada TANGGAL. Jangan menulis tanggal: program "
+    "menampilkannya di bagian riwayat."
+)
 HISTORY_TASK = (
     "Jelaskan apa yang berubah: isi bunyi lama dan isi bunyi yang berlaku pada TANGGAL, menurut "
     "KUTIPAN. Jangan menulis tanggal: program menampilkannya di bagian riwayat."
@@ -288,6 +294,7 @@ class Outcome:
     vector: np.ndarray | None = field(default=None, repr=False)  # the question, embedded
     later_replies: list[Reply] = field(default_factory=list)  # the search in later law
     later: list[Passage] = field(default_factory=list)  # law that began after the date
+    earlier: list[Passage] = field(default_factory=list)  # wordings that had ended by the date
     answer: str = ""
     citations: list[Citation] = field(default_factory=list)  # verified
     abstained: bool = False
@@ -329,6 +336,9 @@ class Outcome:
             parts.append("Sumber:\n" + "\n".join(listed))
         elif listed:  # found, but the model saw no answer in them
             parts.append("Kutipan terdekat yang ditemukan:\n" + "\n".join(listed))
+        if self.earlier:
+            before = [f'- {p.chunk.title} [{p.source_id}]: "{p.quote}"' for p in self.earlier]
+            parts.append(f"{EARLIER_HEADING}:\n" + "\n".join(before))
         if self.later:
             after = [f'- {p.chunk.title} [{p.source_id}]: "{p.quote}"' for p in self.later]
             parts.append("Aturan yang berlaku kemudian:\n" + "\n".join(after))
@@ -429,10 +439,17 @@ def task_for(outcome: Outcome) -> str | None:
     if outcome.calculation is not None and outcome.lead:
         return CALCULATION_TASK
     if u.intent == "status":
-        return STATUS_TASK
+        return STATUS_STATED_TASK if outcome.lead else STATUS_TASK
     if u.intent == "riwayat":
         return HISTORY_TASK
     return None
+
+
+def applied_on(passage: Passage, as_of: date) -> bool:
+    """The passage is from a wording that applied on the date. Only such a passage is a source
+    of the answer; a wording that had ended is shown apart, as what the law used to say."""
+    chunk = passage.chunk
+    return not isinstance(chunk, DatedChunk) or chunk.valid_on(as_of)
 
 
 def by_code(chunk: Chunk, spans: list[tuple[int, int]] | None = None) -> Passage:
@@ -810,6 +827,47 @@ class Pipeline:
             added.append(by_code(self.whole(first, u.as_of), spans))
         return added[:2]
 
+    def current_wordings(self, outcome: Outcome) -> list[Passage]:
+        """For each quoted wording that had ended by the date: the wording of the same article
+        that applied on it, at the same ayat and items, unless the model quoted that too. A
+        deleted article's is the line that deletes it."""
+        u = outcome.understanding
+        have = {key(p.chunk) for p in outcome.passages if isinstance(p.chunk, DatedChunk)}
+        added = []
+        for passage in outcome.passages:
+            if applied_on(passage, u.as_of):
+                continue
+            versions = self.library.versions(passage.chunk.provision_id, u.as_of, history=False)
+            for current in versions[:1]:
+                if key(current) in have:
+                    continue
+                have.add(key(current))
+                body = body_of(current)
+                spans = same_places(body, places(body_of(passage.chunk), passage.spans))
+                added.append(by_code(self.whole(current, u.as_of), spans or opening(body)))
+        return added
+
+    def as_it_applied(self, outcome: Outcome) -> None:
+        """What the model writes from is the law of the date. A question it took for one about
+        status or change is searched in every wording up to the date, so it may have quoted a
+        wording that had ended. That quote finds the article; it is not what applied. The model
+        gets the wording that did, code says whether the article still applied (the temporal
+        model knows), and the ended wording is shown apart (finish).
+
+        Found on the reworded questions: three ordinary questions were read as status
+        questions, and two of the answers cited an ended wording as the law of the date."""
+        u = outcome.understanding
+        ended = [p for p in outcome.passages if not applied_on(p, u.as_of)]
+        if not ended:
+            return
+        current = self.current_wordings(outcome)
+        kept = [p for p in outcome.passages if applied_on(p, u.as_of)]
+        outcome.earlier, outcome.passages = ended, kept + current
+        if not outcome.lead:
+            articles = dict.fromkeys(p.chunk.provision_id for p in ended)
+            sentences = [status_sentence(self.library, a, u.as_of) for a in list(articles)[:2]]
+            outcome.lead = " ".join(s for s in sentences if s) or None
+
     @traced("later law")
     def look_later(self, outcome: Outcome) -> None:
         """The law of the date holds no answer. See whether an article or ruling that began
@@ -1040,8 +1098,13 @@ class Pipeline:
             outcome.timeline = "\n\n".join(h for h in histories if h) or None
         if u.intent == "riwayat":
             outcome.passages = self.earlier_wordings(outcome) + outcome.passages
+            outcome.passages += self.current_wordings(outcome)
             if self.compare(outcome):
                 return
+        if u.history:
+            self.as_it_applied(outcome)
+            if not outcome.passages:
+                return  # nothing of the article applied on the date: the opening says so
         self.compose(outcome)
         if not outcome.said and not outcome.lead and self.reselect(outcome):
             self.compose(outcome)
@@ -1077,12 +1140,17 @@ class Pipeline:
         passages, and notes by code."""
         u = outcome.understanding
         said = outcome.said
+        # Sources are what applied on the date. An earlier wording (the original of an article
+        # whose status was asked, the old side of a comparison) is listed under its own heading.
+        ended = [p for p in outcome.passages if not applied_on(p, u.as_of)]
+        outcome.earlier += ended
+        outcome.passages = [p for p in outcome.passages if applied_on(p, u.as_of)]
         if not said and not outcome.lead:
             if outcome.later:
                 self.state_later(outcome)
                 return
             outcome.abstained, outcome.referral = True, DEFAULT_REFERRAL
-            if outcome.passages:  # the model saw no answer in the passages it picked
+            if outcome.passages or ended:  # the model saw no answer in the passages it picked
                 outcome.answer = outcome.declined or NO_VERIFIED_SOURCE
             else:
                 chose_none = bool(outcome.selections) and not outcome.first_problems

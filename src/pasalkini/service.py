@@ -174,6 +174,8 @@ def answer_payload(outcome: Outcome) -> dict:
         # the basis of an answer.
         "nearest": [] if outcome.citations else passages,
         "later": [passage_dict(p) for p in outcome.later],  # began after the date
+        # Wordings that had ended by the date: what the law used to say, not a source.
+        "earlier": [passage_dict(p) for p in outcome.earlier],
         "calculation": calculation_dict(outcome.calculation) if outcome.calculation else None,
         "timeline": outcome.timeline,
         "changed_since": outcome.changed_since,

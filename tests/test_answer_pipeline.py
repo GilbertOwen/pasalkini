@@ -9,6 +9,7 @@ from pasalkini.answer.context import Library, history_of, merge_periods, status_
 from pasalkini.answer.llm import Reply
 from pasalkini.answer.pipeline import (
     DISPUTE_REFERRAL,
+    EARLIER_HEADING,
     LATER_PROMPT,
     NO_BASIS,
     NO_VERIFIED_SOURCE,
@@ -400,8 +401,11 @@ def test_history_questions_see_each_wording_once_over_its_whole_span():
         "Pada 1 Oktober 2026: berlaku bersyarat dengan bunyi dari UU 11/2020 "
         "[uu-11-2020/pasal-81/angka-22], bukan bunyi aslinya.",
     ]
-    given = chat.named("Answer")[0][-1]["content"]
-    assert "RIWAYAT PASAL" in given and "TUGAS: Jelaskan apa yang berubah" in given
+    # The model quoted only the old wording. Code adds the one that applied, so that the
+    # answer compares the two.
+    given = chat.named("Comparison")[0][-1]["content"]
+    assert "RIWAYAT PASAL" in given and THREE in given and FOUR in given
+    assert not chat.named("Answer")
 
 
 OPENING = (
@@ -415,26 +419,80 @@ def test_whether_a_named_article_still_applies_is_answered_by_code_alone():
     outcome = run(chat, "Apakah Pasal 78 UU 13/2003 masih berlaku?", TODAY)
     assert [name for name, _ in chat.calls] == ["Classification"]
     assert outcome.answer == OPENING and not outcome.abstained
-    # Sources: the wording that applies, then the original, each by its first line.
-    assert [(c.source_id, c.quote) for c in outcome.citations] == [
-        (NEW.source_id, FOUR),
-        (OLD.source_id, THREE),
-    ]
+    # The source is the wording that applies, by its first line. The original is shown too,
+    # but not as a source: it no longer applied.
+    assert [(c.source_id, c.quote) for c in outcome.citations] == [(NEW.source_id, FOUR)]
+    assert [(p.source_id, p.quote) for p in outcome.earlier] == [(OLD.source_id, THREE)]
+    shown_to_user = outcome.display()
+    assert shown_to_user.index("Sumber:") < shown_to_user.index(EARLIER_HEADING)
+    assert f"{EARLIER_HEADING}:\n- {OLD.title} [{OLD.source_id}]" in shown_to_user
     assert outcome.timeline.startswith("Riwayat UU 13/2003 Pasal 78:")
     assert outcome.confidence == "sedang"  # the wording applies conditionally
 
 
 def test_a_status_question_about_an_article_not_in_the_model_goes_to_the_model():
-    chat = ScriptedChat(intent="status", selections=[PICKS_OLD])
+    chat = ScriptedChat(intent="status", selections=[PICKS_NEW])
     outcome = run(chat, "Apakah Pasal 999 UU 13/2003 masih berlaku?", TODAY)
     assert outcome.lead is None and chat.named("Answer")
+    assert "TUGAS: Jawab apakah aturan itu masih berlaku" in chat.named("Answer")[0][-1]["content"]
+
+
+def test_an_ended_wording_the_model_quotes_is_not_what_it_answers_from():
+    # An ordinary question, taken for a status question: the search then covers every wording
+    # up to the date, and the model quotes the one of 2003 for a question about 2026.
+    chat = ScriptedChat(
+        intent="status", selections=[PICKS_OLD], answers=[says("Paling lama 4 jam.")]
+    )
+    outcome = run(chat, "Sekarang lembur paling lama berapa jam sehari?", TODAY)
+    # The quote found the article. Code says whether that article still applied, and the model
+    # writes from the wording that did, at the same place.
+    given = chat.named("Answer")[0][-1]["content"]
+    assert FOUR in given and THREE not in given
+    assert f"KALIMAT PEMBUKA (oleh program): {OPENING}" in given
+    assert "TUGAS: KALIMAT PEMBUKA sudah menyebut apakah pasalnya masih berlaku" in given
+    assert outcome.answer == f"{OPENING} Paling lama 4 jam."
+    assert [c.source_id for c in outcome.citations] == [NEW.source_id]
+    assert [p.source_id for p in outcome.earlier] == [OLD.source_id]
+    # A sentence that takes its number from the ended wording does not pass the check.
+    stale = ScriptedChat(intent="status", selections=[PICKS_OLD], answers=[says(SAID), says(SAID)])
+    outcome = run(stale, "Sekarang lembur paling lama berapa jam sehari?", TODAY)
+    assert outcome.answer == OPENING and outcome.trimmed
+
+
+def test_a_deleted_article_found_by_its_old_wording_is_reported_as_deleted():
+    pid = "uu-13-2003/pasal-90"
+    text = "Bagi pengusaha yang tidak mampu membayar upah minimum dapat dilakukan penangguhan"
+    old = dated(pid, pid, text, "2003-03-25", "2020-11-02", title="UU 13/2003 Pasal 90 (lama)")
+    gone = dated(
+        "uu-11-2020/pasal-81/angka-27",
+        pid,
+        "Pasal 90 dihapus.",
+        "2020-11-02",
+        status="repealed",
+        title="UU 13/2003 Pasal 90 (dihapus)",
+    )
+    index = replace(INDEX, chunks=[old, gone], vectors=np.array([[1.0, 0.0]] * 2, np.float32))
+    chat = ScriptedChat(intent="status", selections=[picks((pid, "dapat dilakukan penangguhan"))])
+    pipeline = Pipeline(CONFIG, [old, gone], index, None, chat=chat, today=TODAY)
+    outcome = pipeline.run("Apakah penangguhan upah minimum masih bisa diajukan?", TODAY, QUERY)
+    assert outcome.answer.startswith(
+        "UU 13/2003 Pasal 90 sudah tidak berlaku pada 1 Oktober 2026: pasal ini dihapus sejak "
+        "2 November 2020 oleh UU 11/2020."
+    )
+    assert [(c.source_id, c.quote) for c in outcome.citations] == [
+        (gone.source_id, "Pasal 90 dihapus.")
+    ]
+    assert [p.source_id for p in outcome.earlier] == [pid]
+    assert text not in chat.named("Answer")[0][-1]["content"]
 
 
 def test_a_question_about_change_is_answered_as_the_old_wording_and_the_current_one():
     chat = ScriptedChat(intent="riwayat", selections=[PICKS_NEW])
     outcome = run(chat, "Apa yang berubah pada Pasal 78 UU 13/2003?", TODAY)
-    # The model quoted only the wording that applies; code adds the original, in front.
-    assert [c.source_id for c in outcome.citations] == [OLD.source_id, NEW.source_id]
+    # The model quoted only the wording that applies; code adds the original. It is compared
+    # with, and shown as an earlier wording, not as a source.
+    assert [c.source_id for c in outcome.citations] == [NEW.source_id]
+    assert [p.source_id for p in outcome.earlier] == [OLD.source_id]
     given = chat.named("Comparison")[0][-1]["content"]
     assert (
         "1. BUNYI LAMA: UU 13/2003 Pasal 78" in given and "2. BUNYI SEKARANG: UU 13/2003" in given
@@ -474,7 +532,8 @@ def test_without_an_old_wording_a_question_about_change_goes_to_the_usual_answer
     both = picks((OLD.source_id, "paling banyak 3 (tiga) jam"), (NEW.source_id, "paling lama 4"))
     chat = ScriptedChat(intent="riwayat", selections=[both])
     outcome = run(chat, "Apa yang berubah?", TODAY)
-    assert [c.source_id for c in outcome.citations] == [OLD.source_id, NEW.source_id]
+    assert [c.source_id for c in outcome.citations] == [NEW.source_id]
+    assert [p.source_id for p in outcome.earlier] == [OLD.source_id]
     assert outcome.answer == COMPARED  # the model quoted both itself: nothing was added
     only_old = ScriptedChat(intent="riwayat", selections=[PICKS_OLD])
     outcome = run(only_old, "Apa yang berubah pada aturan lembur sampai 2019?", date(2019, 6, 1))
@@ -526,7 +585,8 @@ def test_a_history_question_without_a_named_article_gets_the_timeline_of_what_it
     # first.
     assert ids[:3] == [OLD.source_id, NEW.source_id, REST.source_id]
     assert outcome.timeline.startswith("Riwayat UU 13/2003 Pasal 78:")
-    assert outcome.lead is None and outcome.answer == SAID
+    # The model quoted the old wording only; the one that applied is added and compared with.
+    assert outcome.lead is None and outcome.answer == COMPARED
 
 
 def test_a_rule_the_model_finds_absent_is_reported_with_when_it_began():
@@ -784,7 +844,7 @@ def test_a_quote_of_when_an_article_applied_is_not_evidence_of_what_it_says():
     given = chat.named("Comparison")[0][-1]["content"]
     assert f"BUNYI LAMA: {OLD.title}\n{THREE}" in given and FOUR in given
     assert outcome.answer == COMPARED
-    assert outcome.citations[0].quote == THREE  # shown to the user: the wording, not its date
+    assert outcome.earlier[0].quote == THREE  # shown to the user: the wording, not its date
     # For a status question the line that dates the wording is the evidence.
     asked = ScriptedChat(intent="status", selections=[picks((OLD.source_id, OLD.title))])
     kept = run(asked, "Apakah aturan lembur 3 jam masih berlaku?", date(2019, 6, 1))
