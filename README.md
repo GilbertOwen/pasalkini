@@ -8,7 +8,7 @@ Ask a labor-law question and a date. PasalKini answers with the law that applied
 
 ## Status
 
-Phase 7 of the [build plan](PLAN.md): the checked answer pipeline now runs as an app, with an HTTP API and four screens, on a local model. The answers have been read and graded. The evaluation set has 78 dated questions whose answer keys are still drafts awaiting human review, and the grading was done by an AI, so all numbers are provisional.
+Phase 7 of the [build plan](PLAN.md): the checked answer pipeline now runs as an app, with an HTTP API and four screens, on a local model. The answers have been read and graded, and every question has since been asked a second time in other words. The evaluation set has 78 dated questions whose answer keys are still drafts awaiting human review, and the grading was done by an AI, so all numbers are provisional.
 
 ## Why
 
@@ -20,7 +20,7 @@ Indonesian labor law has changed several times: UU 13/2003, the Cipta Kerja law 
 2. **Model time.** Every change is an event: a law takes effect, an article is amended, inserted or deleted, an MK ruling conditions an article, a law is revoked. Replaying the events in date order gives every article's versions with the dates they applied. Examples from the real data:
    - UU 13/2003 Pasal 64 (outsourcing): original until 1 Nov 2020, deleted by UU 11/2020, rewritten by Perppu 2/2022 from 30 Dec 2022, conditional under MK 168 from 31 Oct 2024.
    - Pasal 78 (overtime): at most 3 hours a day until 2020, 4 hours a day after.
-3. **Understand, then retrieve by date.** Code reads the date: from the question ("Maret 2019", "2 tahun lalu"), else the date picker, else today. A local model (`qwen3.5:4b` via Ollama) sorts the question into explain, status, history, calculation or out of scope. Only versions that applied on the date are searched (dense + BM25), so an answer about 2019 cannot quote a 2021 regulation. Status and history questions see every version up to the date. Articles the question names ("Pasal 59 UU 13/2003") are looked up directly.
+3. **Understand, then retrieve by date.** Code reads the date: from the question ("Maret 2019", "2 tahun lalu"), else the date picker, else today. A local model (`qwen3.5:4b` via Ollama) sorts the question into explain, status, history, calculation or out of scope. Only versions that applied on the date are searched (dense + BM25), so an answer about 2019 cannot quote a 2021 regulation. Status and history questions see every version up to the date, but only a wording that applied on the date can be a source of the answer: an earlier wording is listed apart, as what the law used to say, and this holds even when the model mistakes an ordinary question for a status question. Articles the question names ("Pasal 59 UU 13/2003") are looked up directly.
 4. **Pick the passages, check them, then answer.** The model first picks quotes from the sources it was given. Code uses each quote to find the passage: word for word, or nearly, but never with a different number, and only in a text that applied on the date. The model then writes one to three sentences from those passages alone, starting from the words it answers from and any limit on them. Code checks that the answer mentions no number or article it was not given. Only passages that passed are shown, in the source's own words; if none is left, or the model finds no answer in them, the answer abstains and shows what it found.
 5. **Let code say what code knows.** Whether a named article still applies, and since when, comes from the temporal model without a model call. Severance and PKWT compensation come from `src/pasalkini/tools/pesangon.py`, whose rules are versioned by date and cite their articles; the model only reads the facts from the question, and its reason for a dismissal must be in the question's own words. A Constitutional Court ruling on a quoted article is read out by rule ("only applies if read as ..."). If nothing in the law of the date answers the question but a later article does, the answer says the rule was not yet in force. An answer about a past date says which cited articles changed later.
 6. **Refuse what is out of scope.** Questions outside labor law, or requests to act as the user's lawyer or promise an outcome, get a refusal and a referral.
@@ -52,6 +52,8 @@ Provisional: the 78 answer keys are drafts that a person still has to check, the
 - **What moved it:** picking and checking the passages before answering, and letting code state what it knows (an article's status, an amount, what a court ruling changed). The model's own sentences after a calculation were wrong in four runs in four different ways; they are now left out.
 - **On the 36 held-out questions**, graded by an automatic judge: plain RAG 11 correct and 18 wrong, Phase 5 23 and 9, Phase 6 24 and 7. The judge agrees with the reading on "wrong or not" in 93% of 252 answers and never called a wrong answer correct, but passes half of the partly-right ones.
 - **The cost of the new design:** it declines 2 of 36 held-out questions that the Phase 5 pipeline answered.
+- **The same questions in other words** (one rewording each, kept apart from the 78). Reworded, the development questions dropped from 36 to 26 correct of 42. After six changes made from reading those answers: 34 of 42, and the originals 37. On the held-out half, by the judge: 22 to 25 correct of 36 rewordings, 24 to 26 of 36 originals. Real, but small on questions nobody tuned on.
+- **The rewordings found a hole in the date guarantee.** 2 of 24 held-out rewordings were answered with a wording that had ended before the date among the sources. The dates were right; the model had taken three ordinary questions for questions about an article's status, which are searched in every wording up to the date. Sources are now limited to what applied on the date whatever the model takes the question for, and `pasalkini misread` forces the mistake to prove it: 7 of 60 answers cited an ended wording before, 0 of 60 after.
 - **Speed:** about 5 s per question (plain RAG: 3 s).
 - **Thinking mode is not usable** on this model and GPU: 1 of 36 answers came back within 2,500 tokens, at 37 s each.
 - **A fixed pipeline beats an agent here.** Letting the model choose its own searches and tools (`pasalkini-agent`) cites an expected source in 82% against 91% and declines 7 questions it should answer.
@@ -83,7 +85,7 @@ uv run pytest
 
 | Screen | What it does |
 |---|---|
-| **Tanya** | A question and an optional date. Shows which stage is running, then the answer with the date it used, its sources in their own words, what changed after that date, and notes. Each cited article opens in full, as it stood on that date |
+| **Tanya** | A question and an optional date. Shows which stage is running, then the answer with the date it used, its sources in their own words, earlier wordings and later law under their own headings, what changed after that date, and notes. Each cited article opens in full, as it stood on that date |
 | **Riwayat Pasal** | One article's timeline, every version in full, and the word-level changes between any two |
 | **Konsolidasi** | A law or regulation as it stood on a date: each article in the wording that applied |
 | **Kalkulator Pesangon** | Severance and PKWT compensation under the rules of the dismissal date, each line with its legal basis. Computed by rule; no model |
@@ -115,7 +117,8 @@ Other commands:
 |---|---|
 | `pasalkini law uu-13-2003 --date 2021-06-01 --pasal 78 79` | Articles as they stood on a date |
 | `pasalkini history uu-13-2003/pasal-64 --diff` | Every version of one article, with word-level changes |
-| `pasalkini eval baseline` / `versions` / `temporal` / `pasalkini` / `pasalkini-agent` | The pipelines compared in the results; `--retrieval-only` skips the answers, `--split dev` runs one split |
+| `pasalkini eval baseline` / `versions` / `temporal` / `pasalkini` / `pasalkini-agent` | The pipelines compared in the results; `--retrieval-only` skips the answers, `--split dev` runs one split, `--dataset variants` runs the reworded questions |
+| `pasalkini misread status` (or `riwayat`) | Every ordinary development question with its kind forced to the wrong one. Fails if an answer cites a wording that had ended by the date |
 | `pasalkini compare <run> <run> --split dev` | Runs side by side |
 | `pasalkini rescore` | Recompute the latest run after answer keys change |
 | `pasalkini funnel <run>` | Where answerable questions are lost: retrieval or the answer |
@@ -137,6 +140,7 @@ Adding a law, regulation or MK ruling: [docs/runbook-new-instrument.md](docs/run
 | `sources/events-review.csv` | Every extracted change event, for human review |
 | `sources/topics.yaml` | Topics and the everyday words people use for them |
 | `evals/datasets/golden.jsonl` | Dated test questions |
+| `evals/datasets/variants.jsonl` | The same questions in other words |
 | `evals/runs/` | One folder per evaluation run: config, summary, grading sheet, grades by reading and by the judge |
 | `evals/fixtures/retrieval.npz` | Snapshot of the corpus and question embeddings for the CI retrieval gate |
 | `docs/` | Evaluation results, architecture, runbook for a new instrument, parse and temporal-model reports, spot-check sheet |

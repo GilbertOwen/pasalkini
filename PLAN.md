@@ -419,6 +419,8 @@ pasalkini/
 **Done when:** a fresh clone plus the README steps gives a running app in under 15 minutes. *(Checked on 2026-10-02 on the development laptop, from a fresh clone: `uv sync` 47 s; `setup` 64 s with the PDFs copied in instead of downloaded again (15 files, about 180 MB, one request every 3 s when downloaded); the app up 12 s after `serve`; first answer 13 s, with the model loading. The rebuilt corpus has the same fingerprint as the one the evaluation used. Pulling the two Ollama models, about 4 GB, comes on top for a machine that does not have them.)*
 **Skills:** API design, UI, privacy engineering, observability, Docker, CI/CD.
 
+**Added after the app first ran (2026-10-02), not in the plan:** questions typed into the app were answered worse than the evaluation's own, so every question got a second wording (`evals/datasets/variants.jsonl`), measured apart from the 78. Six changes followed from its development half; the held-out half showed that the date guarantee depended on the model reading the kind of question correctly, which is now closed and tested by forcing the mistake (`pasalkini misread`). Results in `docs/eval-results.md`, section 10.
+
 ### Phase 8: Portfolio launch (week 13)
 
 - [ ] README: the problem, a 60-second demo GIF, the architecture diagram, results (baseline vs PasalKini), how to run it, data and compliance (link to the legal review), limitations.

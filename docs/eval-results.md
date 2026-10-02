@@ -1,6 +1,6 @@
 # Evaluation results
 
-Status on 2026-10-01, at the end of Phase 6 (`PLAN.md`). Section 9 was added on 2026-10-02, when the app first ran (Phase 7).
+Status on 2026-10-01, at the end of Phase 6 (`PLAN.md`). Sections 9 and 10 were added on 2026-10-02: the app first ran (Phase 7), and the questions were then asked again in other words.
 
 ## Read this first
 
@@ -9,6 +9,7 @@ Status on 2026-10-01, at the end of Phase 6 (`PLAN.md`). Section 9 was added on 
 - **Two kinds of numbers.** Sections 1 and 5 count *sources*: which texts reached the model and which it cited. Section 2 asks whether the *answer is right*, which needs someone to read it.
 - **The reading was done by the AI assistant that built the system** (Claude), against the draft keys, on the development questions only. It is a reference to work with, not a verdict: a person still has to grade a run (`grading.csv` in each run folder).
 - **Held-out answers were not read one by one.** They are graded by an automatic judge whose agreement with the reading is measured in section 3. Only totals are looked at.
+- **Sections 1 to 8 describe the code of 2026-10-01 on the 78 questions as written.** Section 10 measures the same questions reworded, and the code as it is now on both.
 - Everything runs locally: `qwen3.5:4b` and `qwen3-embedding:0.6b` on a laptop RTX 3060 (6 GB).
 
 ## 1. Does the answer cite law that did not apply on the date?
@@ -248,12 +249,102 @@ Read the 33 to 36 of 42 in section 2 with this in mind. The held-out numbers (24
 
 **One fix was tried and reverted.** Answers of the form "no rule exists" were withheld, so that the model would pick other quotes (commit `2ed18ac`, run `20261002-002134-pasalkini-dev`). It fired on 2 of the 42 development questions, both on long leave, where "there is no duty" can be a right reading of "dapat": one correct answer became partly right and one partly right answer became wrong, as the second pick took the article on weekly rest. The paraphrase above changed from "no maximum" to "not yet in force", which is also wrong. Nothing improved, so it was taken out (`5b1ea7f`). The same run shows the noise of section 6 once more: a third answer, which the change did not touch, flipped from correct to wrong.
 
-What would be worth trying, measured against paraphrased and trap questions kept apart from the 78: turning the question into a short legal query before the search, and letting the answer step read the whole of a short article it quoted from.
+Both ideas that followed from this were then measured on reworded questions (section 10): a rewrite of the question before the search did not help; reading the whole article after an answer of "no rule" did, and fixed the second case above.
 
-## 10. Known gaps
+## 10. The same questions in other words (2026-10-02)
+
+Section 9 was a dozen questions typed by hand. To measure it, each of the 78 questions got one rewording (`evals/datasets/variants.jsonl`): another term for the same thing ("kontrak kerja waktu tertentu", "UMR", "resign"), the way people type it, the question inside a short account, or another order. Only the wording is new; the date and the answer key are the original's. The rewordings were written by the AI assistant, are run apart from the 78 (`--dataset variants`), and are split the same way: 42 to work from, 36 held out.
+
+### Before and after
+
+"Before" is the code as it stood when the app first ran (Phase 7, commit `cc6ef6a`). "After" is commit `4043424`. Development answers were read against their keys; held-out answers were graded by the judge of section 3 and only the totals looked at.
+
+| Correct / partly / wrong | Before | After |
+|---|---|---|
+| Reworded, development (42), read | 26 / 8 / 8 | **34 / 3 / 5** |
+| Original, development (42), read | 36 / 4 / 2 | 37 / 3 / 2 |
+| Reworded, held out (36), judge | 22 / 5 / 9 | 25 / 3 / 8 |
+| Original, held out (36), judge | 24 / 5 / 7 | 26 / 3 / 7 |
+
+| Sources and refusals, reworded (78) | Before | After |
+|---|---|---|
+| Answer cites a source that did not apply on the date | **4% (2/57)** | 0% (0/57) |
+| Answer cites an expected source | 81% (54/67) | 88% (59/67) |
+| Expected source reaches the context | 94% (63/67) | 96% (64/67) |
+| Refuses or abstains exactly when it should | 95% (74/78) | 96% (75/78) |
+| Date used is the key's date | 75 of 78 | 78 of 78 |
+
+Runs: `20261002-113829-pasalkini-variants` (before), `20261002-230554-pasalkini` and `20261002-231246-pasalkini-variants` (after). The originals' "before" is the last Phase 6 run. On the 78 originals the source counts did not move: 0 of 57 stale, 60 of 67 expected (61 before), 76 of 78 refusals.
+
+How to read it:
+
+- **Rewording cost about a quarter of the correct answers** on the development questions (36 to 26), which is what section 9 suggested. Most of that is recovered (34), by changes made from reading those 42 answers.
+- **On questions nobody tuned on, the gain is small**: three more correct and one fewer wrong of 36 rewordings, two more correct of 36 originals. That is at the edge of what this judge and this run-to-run noise can show. The honest summary is "no longer worse on the originals, somewhat better on rewordings", not "fixed".
+- A reworded question is still answered wrong more often than its original: 5 of 42 against 2 of 42 read, 8 of 36 against 7 of 36 judged.
+- The judge agreed with the reading on these two development runs in 76 of 84 answers, and on "wrong or not" in 82 of 84.
+
+### The date guarantee had a hole
+
+On the held-out rewordings, **2 of 24 answers cited a wording that had ended before the date**: the first non-zero in that column since the date filter went in (section 1). It was there before any of the changes below and still there after steps 1 to 4.
+
+The cause was not the date. The date was right in all 78. Three held-out rewordings of ordinary questions were taken by the model for questions about an article's *status*. Such a question is searched in every wording up to the date, because the answer needs the old one. None of the three names an article, so nothing was answered by code: the model picked quotes, old wordings among them, and wrote from them.
+
+So the filter was code, but which filter a question got was the model's decision. Not one of the 78 originals or the 42 reworded development questions takes that path, which is why it never showed.
+
+What changed (commit `4043424`):
+
+- **Sources are the wordings that applied on the date, whatever the model takes the question for.** A wording that had ended is listed under its own heading, "Bunyi sebelumnya (tidak berlaku lagi pada tanggal itu)", the same way law that began later already was.
+- When the model quotes an ended wording, the quote finds the article and no more. Code states whether that article still applied (the temporal model knows), and the model writes from the wording that did, at the same ayat. A deleted article is reported as deleted.
+
+To test it without looking at held-out questions, the mistake is forced: `uv run pasalkini misread status` runs the 64 ordinary development questions (originals and rewordings) with their kind set to the wrong one.
+
+| Kind forced on 64 ordinary questions | Before | After |
+|---|---|---|
+| "status": answers that cite an ended wording | 7 of 60 | 0 of 60 |
+| "what changed": the same | 15 of the first 35 (run cut short) | 0 of 60 |
+
+After the change the held-out rewordings show 0 of 24. Two of the three misread questions now open with a sentence about an article's status that nobody asked for, followed by an answer from the law of the date; the run summary counts them as "Earlier wording shown unasked" (2 of 70).
+
+### What each change did
+
+Development questions, read. Wording varies between runs, so a step of one or two is not evidence by itself.
+
+| Step | Reworded | Original | What changed |
+|---|---|---|---|
+| Phase 7 code | 26 / 8 / 8 | 36 / 4 / 2 | |
+| 1 | 28 / 7 / 7 | | Reading the question: "Undang-Undang Nomor 13 Tahun 2003" was taken as the year 2003 and overrode the date picker ("is Pasal 59 still in force?" was answered for 1 July 2003); an article named apart from its law ("Pasal 90 UU Ketenagakerjaan (UU 13/2003)") was not recognised |
+| 2 | 32 / 5 / 5 | 36 / 3 / 3 | Search fuses 50 candidates from each ranking instead of 20 (an everyday wording ranks the right article well in one ranking and far down the other). A selection reply cut off by a copied table is read from the start of its quotes. "Saya dapat apa saja?" counts as asking about rights. An answer that says no rule exists is asked again with the quoted articles in full |
+| 3 | 34 / 4 / 4 | 35 / 3 / 4 | A question about change is answered from articles that changed. After a confirmed "no rule on that date", later law is searched and code says when the rule began |
+| 4 | 34 / 4 / 4 | 36 / 3 / 3 | A quote of the line that dates a wording is replaced by the wording (step 3 had exposed it on one original) |
+| The same code, all 78 in one run | 33 / 4 / 5 | 37 / 3 / 2 | |
+| 5 | 34 / 3 / 5 | 37 / 3 / 2 | Sources are only what applied on the date (above) |
+
+Tried and not kept: a rewrite of the question by the model before the search (Recall@5 on the reworded development questions 0.62 to 0.63), and the topic synonyms as extra rankings instead of extra words (no gain on either set). The wider candidate pool moved search alone from 30 to 32 of 37 reworded development questions with an expected source in the top 5, and Recall@5 on the 78 originals from 0.731 to 0.743 (the CI snapshot was remade).
+
+### Still wrong on the reworded development questions
+
+| Question | Grade | What happens |
+|---|---|---|
+| Suspension of the minimum wage, 2022 | wrong | The rule was deleted in 2020. Only what applied is searched, and what applied is the line "Pasal 90 dihapus.", which a question about suspension does not find. The model argues from other articles or declines. Read as a status question the same question is answered correctly by code |
+| "Outsourcing" before and after Cipta Kerja | wrong | The search finds no article on alih daya and two wordings of the article on wages in bankruptcy are compared |
+| Is the 2022 severance table a minimum? | wrong | "A minimum", in most runs; the original wording gets it right in about half |
+| Tax on severance | wrong | Answered ("at most 50%", from the limit on wage deductions) instead of refused. The original wording is refused |
+| Compensation when a contract ends, 2019 | wrong or partly | Right conclusion in most runs, argued from the severance articles; in the last run no conclusion at all. The articles on fixed-term contracts are not in the context |
+| Long leave, 2019 and 2025; severance for efficiency, 2022 | partly | As for the originals (section 2), and the efficiency answer gives one of the two cases |
+
+Two answers flip between correct and wrong from run to run with the same code: JKP in 2019 as reworded (the original wording is wrong every time), and the severance table of 2022 in its original wording.
+
+### What was and was not kept apart
+
+- No held-out question or answer was read, with one slip: the tail of a log showed the judge's grade next to the ID of 23 held-out rewordings for the "before" run (grades only). The code that the "after" numbers measure was changed afterwards only by the fix above, which was designed from totals (how many questions of which category were read as which kind) and from the forced-misreading run on development questions.
+- The rewordings are the assistant's own, like the keys. A person should check that each still asks what its original asks.
+
+## 11. Known gaps
 
 - **No person has graded anything.** The answer keys, the reading of the development answers and the judge are all AI work.
-- **The questions are cleaner than real ones** (section 9).
+- **The questions are cleaner than real ones** (sections 9 and 10). One rewording each is a start; people's own questions are longer, mix topics and leave things out.
+- **The model decides what kind of question it reads**, and gets it wrong for 3 of 33 held-out rewordings. That can no longer put outdated law among the sources (section 10), but the answer then opens with a status sentence nobody asked for.
+- A rule that was deleted is not found by a question that does not name it (section 10).
 - The model's reasoning: two development answers are wrong with the right passage in front of it (section 2). A larger model is the obvious thing to try; it does not fit the 6 GB GPU together with anything else.
 - Two held-out questions are declined that Phase 5 answered.
 - "Not yet in force" answers rest on PasalKini's sources, which hold 12 instruments. A rule that existed earlier in a regulation outside the corpus would be reported as starting later. The answer says so in a note.

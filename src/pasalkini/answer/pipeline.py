@@ -844,7 +844,10 @@ class Pipeline:
                 have.add(key(current))
                 body = body_of(current)
                 spans = same_places(body, places(body_of(passage.chunk), passage.spans))
-                added.append(by_code(self.whole(current, u.as_of), spans or opening(body)))
+                chunk = self.whole(current, u.as_of)
+                added.append(by_code(chunk, spans or opening(body)))
+                if chunk.source_id not in [c.source_id for c in outcome.context]:
+                    outcome.context.append(chunk)  # read by code: part of what was looked at
         return added
 
     def as_it_applied(self, outcome: Outcome) -> None:

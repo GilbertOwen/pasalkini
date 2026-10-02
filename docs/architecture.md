@@ -48,6 +48,9 @@ question (+ date) ─► date: read from the question, else the date picker, els
                  ─► still none ─► articles that began after the date are searched:
                     "not yet in force on that date", or abstain and show what was found
                  ─► notes by code: rulings on the cited articles, what changed after the date
+                 ─► what is listed as a source: only wordings that applied on the date.       code
+                    A wording that had ended (status and change questions) and law that
+                    began later are each listed under their own heading
 ```
 
 ## The app
@@ -83,6 +86,7 @@ Service.provision / history / law / severance / pkwt_compensation
 | Three statuses: in force, conditional, repealed | `temporal/model.py` | MK conditional rulings and "sepanjang tidak bertentangan" clauses are real legal states |
 | Revocation restores replaced wording | `temporal/build.py` | Perppu 2/2022 revoked UU 11/2020 (Pasal 185) while restating its amendments |
 | Filter by date before ranking | `retrieve/temporal.py` | A version that did not apply cannot be retrieved, so it cannot be cited |
+| The date rule does not depend on the model | `answer/pipeline.py: as_it_applied`, `applied_on` | Questions about status or change are searched in every wording up to the date, and the model decides which questions those are. When it is wrong, old wordings reach it. So a quote of an ended wording only finds the article: the model writes from the wording that applied, code states the article's status, and the ended wording is listed apart from the sources. `pasalkini misread` forces the mistake and counts |
 | Arithmetic in code | `tools/pesangon.py` | Exact, testable, and each rule names its article |
 | Code checks every quote | `answer/verify.py` | A small model tidies what it copies and mixes up IDs; the check finds the passage, refuses a changed number, and shows the source's own words |
 | Pick the passages first, then answer from them alone | `answer/pipeline.py` | Answering over seven articles at once, the model mixed details between them and misread long ones. Correct answers on the development questions went from 23 to 33-36 of 42 |
@@ -102,6 +106,8 @@ Service.provision / history / law / severance / pkwt_compensation
 - Temporal model: property tests (a new event never changes the law before its date; versions never overlap or leave gaps) and fact tests against the primary texts.
 - Answers: the pipeline is tested end to end with a scripted model (every path: picked, repaired, rewritten, picked again, abstained, refused, status and amount by code, old and current wording, later law).
 - Evaluation: every label must match a chunk in the corpus; runs record the config, git commit, model digests and dataset fingerprint, and start from a freshly loaded model; `rescore` re-scores a run when keys change.
+- The date rule under a wrong reading: `uv run pasalkini misread status` (and `riwayat`) runs every ordinary development question with its kind forced to the wrong one, and fails if an answer cites a wording that had ended.
+- Wording: every question exists in a second wording (`evals/datasets/variants.jsonl`), measured apart; tests hold each rewording to the date, articles and wage that code reads from its original.
 - Correctness: answers are graded by reading (`grades-*.csv`), and the automatic judge is used only as far as it agrees with that reading (`pasalkini agreement`).
 - App: the service, the API and what the screens show are tested with the scripted model (cache hits, personal data never reaching the model or the log, a model server that is down, every endpoint). Redaction is tested to leave every evaluation question unchanged, so the evaluation numbers hold for the app's path. The screens were also tried by hand in a browser.
 - CI: lint, the tests, and the retrieval gate on every push (`.github/workflows/ci.yml`).

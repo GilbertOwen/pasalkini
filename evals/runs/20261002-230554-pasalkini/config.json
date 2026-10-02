@@ -1,0 +1,47 @@
+{
+  "config": {
+    "name": "pasalkini",
+    "description": "The answer pipeline: the model classifies the question and rules read its date; date-aware hybrid search plus the articles the question names; the model picks quotes, code checks them, and the model answers from those passages alone; code states an article's status, severance and PKWT compensation, and what a court ruling changed.",
+    "corpus": "versions",
+    "date_filter": true,
+    "history_cues": false,
+    "retriever": "hybrid",
+    "rewrite_query": false,
+    "chunk_headers": false,
+    "embed_model": "qwen3-embedding:0.6b",
+    "chat_model": "qwen3.5:4b",
+    "top_k": 5,
+    "query_instruction": false,
+    "think": false,
+    "temperature": 0.0,
+    "seed": 42,
+    "num_ctx": 8192,
+    "embed_num_ctx": 4096,
+    "max_chars_per_chunk": 2500,
+    "max_answer_tokens": 1024,
+    "answer_mode": "verified"
+  },
+  "retrieval_only": false,
+  "split": null,
+  "git": {
+    "commit": "4043424abd2d407e42c057f84fc7f6b1e9ddf6d9",
+    "dirty": false
+  },
+  "models": {
+    "qwen3-embedding:0.6b": "ac6da0dfba84a81fdbfbaf330198c33cd77c4cdfc53e8bc50eb581914a15621d",
+    "qwen3.5:4b": "2a654d98e6fba55d452b7043684e9b57a947e393bbffa62485a7aac05ee4eefd"
+  },
+  "corpus": {
+    "chunks": 848,
+    "fingerprint": "03d906b40281a940",
+    "newly_embedded": 0
+  },
+  "dataset": {
+    "name": "golden",
+    "items": 78,
+    "reviewed": 0,
+    "sha256": "988e70202fdf504ce8f9e168afe6ce5c56b84f28592e51c89eb141b2e9175791"
+  },
+  "started_at": "2026-10-02T23:05:54",
+  "finished_at": "2026-10-02T23:12:39"
+}

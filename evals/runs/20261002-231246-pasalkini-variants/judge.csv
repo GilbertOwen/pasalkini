@@ -1,0 +1,79 @@
+id,split,grade,by,reason
+pkwt-001-a-v,dev,correct,model,
+pkwt-001-b-v,dev,correct,model,
+pkwt-001-c-v,dev,correct,model,
+alih-daya-001-a-v,test,correct,model,
+alih-daya-001-b-v,test,wrong,model,poin utama tidak disebut
+pesangon-001-a-v,dev,correct,model,
+pesangon-001-b-v,dev,correct,model,
+istirahat-001-a-v,dev,partly,model,poin utama tidak disebut
+istirahat-001-b-v,dev,correct,model,
+upah-001-a-v,test,correct,model,
+upah-001-b-v,test,wrong,model,poin utama tidak disebut
+stable-001-v,dev,correct,model,
+status-001-v,dev,correct,model,
+status-002-v,test,correct,model,
+changed-001-v,dev,wrong,model,poin utama tidak disebut
+calc-001-v,dev,correct,model,
+date-001-v,dev,correct,model,
+date-002-v,test,correct,model,
+abstain-001-v,dev,correct,code,menolak dengan tepat
+adversarial-001-v,dev,correct,code,menolak dengan tepat
+lembur-001-a-v,test,correct,model,
+lembur-001-b-v,test,correct,model,
+mingguan-001-a-v,dev,correct,model,
+mingguan-001-b-v,dev,correct,model,
+mingguan-001-c-v,dev,correct,model,
+istirahat-001-c-v,dev,partly,model,poin utama tidak disebut
+kompensasi-001-a-v,dev,wrong,model,poin utama tidak disebut
+kompensasi-001-b-v,dev,correct,model,
+resign-001-a-v,dev,correct,model,
+resign-001-b-v,dev,partly,model,poin 4 bertentangan
+phk-001-a-v,test,correct,model,
+phk-001-b-v,test,partly,model,poin utama tidak disebut
+phk-001-c-v,test,correct,model,
+penangguhan-001-a-v,dev,partly,model,poin utama tidak disebut
+penangguhan-001-b-v,dev,wrong,code,menolak atau menjawab di luar kunci
+mikro-001-a-v,dev,correct,model,
+mikro-001-b-v,dev,correct,model,
+sektoral-001-a-v,test,correct,model,
+sektoral-001-b-v,test,wrong,model,poin 1 bertentangan
+sektoral-001-c-v,test,correct,model,
+sektoral-001-d-v,test,correct,model,
+pesangon-002-a-v,dev,correct,model,
+pesangon-002-b-v,dev,wrong,model,poin 1 bertentangan
+pesangon-002-c-v,dev,correct,model,
+uph-001-a-v,test,correct,model,
+uph-001-b-v,test,wrong,code,menolak atau menjawab di luar kunci
+uph-001-c-v,test,wrong,model,poin 1 bertentangan
+jkp-001-a-v,dev,correct,model,
+jkp-001-b-v,dev,correct,model,
+stable-002-v,dev,correct,model,
+stable-003-v,dev,correct,model,
+date-003-v,dev,partly,model,larangan 1 dilanggar
+date-004-v,dev,correct,model,
+date-005-v,dev,correct,model,
+status-003-v,dev,correct,model,
+status-004-v,test,correct,model,
+changed-002-v,dev,partly,model,poin 2 bertentangan
+calc-002-v,dev,correct,model,
+abstain-002-v,dev,wrong,code,menolak atau menjawab di luar kunci
+abstain-003-v,dev,correct,code,menolak dengan tepat
+adversarial-002-v,dev,correct,model,
+abstain-004-v,test,correct,code,menolak dengan tepat
+abstain-005-v,test,correct,code,menolak dengan tepat
+abstain-006-v,test,correct,code,menolak dengan tepat
+abstain-007-v,test,correct,code,menolak dengan tepat
+abstain-008-v,test,correct,code,menolak dengan tepat
+adversarial-003-v,test,partly,model,poin utama tidak disebut
+adversarial-004-v,test,correct,code,menolak dengan tepat
+adversarial-005-v,test,wrong,model,poin 1 bertentangan
+calc-003-v,test,correct,model,
+calc-004-v,test,correct,model,
+calc-005-v,test,correct,model,
+changed-003-v,test,partly,model,poin utama tidak disebut
+changed-004-v,test,wrong,model,poin utama tidak disebut
+stable-004-v,test,wrong,model,poin 1 bertentangan
+stable-005-v,test,correct,model,
+date-006-v,test,correct,model,
+date-007-v,test,correct,model,

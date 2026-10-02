@@ -2,6 +2,14 @@
 
 What changed in the corpus and in the app, newest first. For a new legal instrument, follow `docs/runbook-new-instrument.md` and add an entry here.
 
+## 2026-10-02: questions asked in other words
+
+- `evals/datasets/variants.jsonl`: every evaluation question in a second wording (another term, the way people type it, inside a short account, another order). `uv run pasalkini eval pasalkini --dataset variants`.
+- A year inside a law's name ("Undang-Undang Nomor 13 Tahun 2003") is no longer read as the date of the question, and an article named apart from its law ("Pasal 90 UU Ketenagakerjaan (UU 13/2003)") is recognised.
+- Search fuses 50 candidates from each ranking instead of 20. A selection reply that is cut off is read from the start of its quotes. An answer that says no rule exists is asked again with the quoted articles in full, and if it stands, later law is searched and code says when the rule began.
+- **Sources are only what applied on the date.** A wording that had ended is listed under "Bunyi sebelumnya (tidak berlaku lagi pada tanggal itu)" and is never what the model writes from, whatever kind of question the model takes it for. `uv run pasalkini misread status` checks this by forcing the misreading.
+- Corpus unchanged. The CI snapshot was remade for the wider search.
+
 ## 2026-10-02: the app
 
 - `uv run pasalkini serve`: an HTTP API and four screens (Tanya, Riwayat Pasal, Konsolidasi, Kalkulator Pesangon) on `http://127.0.0.1:8000`.
