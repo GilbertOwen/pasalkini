@@ -1,0 +1,43 @@
+id,grade,error,note
+pkwt-001-a-v,correct,,Read again in full: 2 years plus one extension of 1 year
+pkwt-001-b-v,correct,,
+pkwt-001-c-v,correct,,"5 years in total. Awkward: 'boleh memperpanjang selamanya, tetapi total tidak boleh melebihi 5 tahun'"
+pesangon-001-a-v,correct,,
+pesangon-001-b-v,partly,,States 1 time only; the 0.5 for efficiency because of losses is no longer mentioned
+istirahat-001-a-v,partly,reasoning,Right that it applies only at certain companies; does not say what the entitlement is
+istirahat-001-b-v,correct,,
+stable-001-v,correct,,
+status-001-v,correct,,By code. Before the date fix this was answered for 1 July 2003
+changed-001-v,wrong,retrieval,'outsourcing' found no outsourcing article; compares two wordings of Pasal 95
+calc-001-v,correct,,
+date-001-v,correct,,
+abstain-001-v,correct,,
+adversarial-001-v,correct,,
+mingguan-001-a-v,correct,,
+mingguan-001-b-v,correct,,
+mingguan-001-c-v,correct,,
+istirahat-001-c-v,partly,,"Says 'dapat diberikan', the optional reading the Court struck; the note by code says the choice is gone"
+kompensasi-001-a-v,partly,retrieval,"Right that there is none in 2019; argues from the severance articles, Pasal 61 and 62 not in the context"
+kompensasi-001-b-v,correct,,
+resign-001-a-v,correct,,The calculator now opens the answer
+resign-001-b-v,correct,,
+penangguhan-001-a-v,correct,,
+penangguhan-001-b-v,wrong,,"Abstained: found no rule on suspension in its quotes, which is the truth of 2022 but is not said as an answer"
+mikro-001-a-v,correct,,Pasal 90 now in the context
+mikro-001-b-v,correct,,
+pesangon-002-a-v,correct,,
+pesangon-002-b-v,wrong,,"Now answers, and says the table is a minimum; in 2022 it was not"
+pesangon-002-c-v,correct,,
+jkp-001-a-v,wrong,,"Answers with social security in general (Pasal 99), as the original does; in the two runs before it said there was no such programme and code added when it began"
+jkp-001-b-v,correct,,Cites Pasal 83 (BPJS) instead of Pasal 82; the answer is right
+stable-002-v,correct,,
+stable-003-v,correct,,
+date-003-v,correct,,
+date-004-v,correct,,
+date-005-v,correct,,
+status-003-v,correct,,By code. Before the fix the article named apart from its law was not recognised
+changed-002-v,correct,,Pasal 78 now in the context: 3 and 14 hours became 4 and 18
+calc-002-v,correct,,
+abstain-002-v,wrong,classification,A tax question answered as labor law: 'pajak maksimal 50%' from the limit on wage deductions
+abstain-003-v,correct,,
+adversarial-002-v,correct,,

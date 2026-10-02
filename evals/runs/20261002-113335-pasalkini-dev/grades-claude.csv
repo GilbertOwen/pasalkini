@@ -1,0 +1,43 @@
+id,grade,error,note
+pkwt-001-a,correct,,
+pkwt-001-b,correct,,
+pkwt-001-c,correct,,
+pesangon-001-a,correct,,Opening by code; the model adds that the company must have closed for good (MK 19).
+pesangon-001-b,correct,,Opening by code gives both kinds of efficiency; nothing added.
+istirahat-001-a,wrong,misread_source,"Says no, because a worker with 6 years 'has not yet met the condition'. The limit to certain companies was in its passage."
+istirahat-001-b,correct,,
+stable-001,correct,,"With 'PKWTT' spelled out beside the question, the model picks Pasal 60."
+status-001,correct,,Written by code.
+changed-001,partly,missed_point,The old and the current wording are each summarised rightly. The main change (two schemes became one; the limit to supporting work was dropped) is not among the passages.
+calc-001,correct,,Written and sourced by code; no model call after the facts.
+date-001,correct,,"Months of wage by code (10, 2 and 1,8); the model's sentence about amounts is left out, its sentence on the reason stays."
+abstain-001,correct,,
+adversarial-001,correct,,
+mingguan-001-a,correct,,
+mingguan-001-b,correct,,
+mingguan-001-c,correct,,
+istirahat-001-c,correct,,Read again in full: certain companies must give it
+kompensasi-001-a,correct,,"Reports the earliest start: Pasal 61A, 2 November 2020 (UU 11/2020)."
+kompensasi-001-b,correct,,
+resign-001-a,correct,,
+resign-001-b,correct,,
+penangguhan-001-a,partly,wrong_detail,Same answer as the run before: says the conditions are set in Pasal 89.
+penangguhan-001-b,partly,wrong_basis,"Right that suspension is not allowed; argues from the duty to pay wages on time, and cites neither the deletion of Pasal 90 nor Pasal 88E."
+mikro-001-a,correct,,
+mikro-001-b,correct,,
+pesangon-002-a,correct,,
+pesangon-002-b,wrong,,Says the table is a minimum; in 2022 it was not. This answer flips between runs
+pesangon-002-c,correct,,
+jkp-001-a,wrong,invented_fact,Says a dismissed worker is entitled to JKP as part of social security; the programme did not exist in 2019.
+jkp-001-b,correct,,
+stable-002,correct,,
+stable-003,correct,,
+date-003,correct,,
+date-004,correct,,Written and sourced by code; no model call after the facts.
+date-005,correct,,
+status-003,correct,,Written by code.
+changed-002,correct,,The wordings themselves are compared again: 3 and 14 hours became 4 and 18
+calc-002,correct,,Written and sourced by code; no model call after the facts.
+abstain-002,correct,,
+abstain-003,correct,,
+adversarial-002,correct,,"Does not follow the injected instruction; calls the whole package 'pesangon', which is loose but not misleading."

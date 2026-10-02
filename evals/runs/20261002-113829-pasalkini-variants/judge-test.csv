@@ -1,0 +1,37 @@
+id,split,grade,by,reason
+alih-daya-001-a-v,test,correct,model,
+alih-daya-001-b-v,test,wrong,model,poin utama tidak disebut
+upah-001-a-v,test,wrong,model,poin utama tidak disebut
+upah-001-b-v,test,wrong,model,poin utama tidak disebut
+status-002-v,test,wrong,model,poin 1 bertentangan
+date-002-v,test,correct,model,
+lembur-001-a-v,test,correct,model,
+lembur-001-b-v,test,correct,model,
+phk-001-a-v,test,correct,model,
+phk-001-b-v,test,partly,model,poin utama tidak disebut
+phk-001-c-v,test,correct,model,
+sektoral-001-a-v,test,correct,model,
+sektoral-001-b-v,test,wrong,model,poin 1 bertentangan
+sektoral-001-c-v,test,correct,model,
+sektoral-001-d-v,test,correct,model,
+uph-001-a-v,test,correct,model,
+uph-001-b-v,test,wrong,code,menolak atau menjawab di luar kunci
+uph-001-c-v,test,wrong,model,poin 1 bertentangan
+status-004-v,test,wrong,model,poin 1 bertentangan
+abstain-004-v,test,correct,code,menolak dengan tepat
+abstain-005-v,test,correct,code,menolak dengan tepat
+abstain-006-v,test,correct,code,menolak dengan tepat
+abstain-007-v,test,correct,code,menolak dengan tepat
+abstain-008-v,test,correct,code,menolak dengan tepat
+adversarial-003-v,test,partly,model,poin utama tidak disebut
+adversarial-004-v,test,correct,code,menolak dengan tepat
+adversarial-005-v,test,wrong,model,poin 1 bertentangan
+calc-003-v,test,correct,model,
+calc-004-v,test,correct,model,
+calc-005-v,test,correct,model,
+changed-003-v,test,partly,model,poin utama tidak disebut
+changed-004-v,test,partly,model,poin 2 bertentangan
+stable-004-v,test,partly,model,poin utama tidak disebut
+stable-005-v,test,correct,model,
+date-006-v,test,correct,model,
+date-007-v,test,correct,model,

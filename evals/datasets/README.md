@@ -23,6 +23,27 @@ Items dated 2026-09-30 (`status-*`, `abstain-*`, `adversarial-*`) must be re-che
 
 `uv run pytest` checks that every article-, point- or ruling-level label matches a chunk of the parsed corpus. After changing keys, `uv run pasalkini rescore` recomputes the latest run without generating new answers.
 
+## The same questions in other words (`variants.jsonl`)
+
+One rewording of each of the 78 questions, written by an AI on 2026-10-02 after the app answered everyday phrasings worse than the set's own (`docs/eval-results.md`, sections 9 and 10).
+
+```json
+{"id": "pkwt-001-a-v", "variant_of": "pkwt-001-a", "style": "istilah", "question": "Kontrak kerja waktu tertentu paling lama boleh berapa tahun, kalau dihitung dengan perpanjangannya?"}
+```
+
+| `style` | Questions | What changes |
+|---|---|---|
+| `istilah` | 15 | Another term for the same thing: "kontrak kerja waktu tertentu" for PKWT, "cuti panjang", "UMR", "resign" |
+| `santai` | 16 | The way people type it: "sih", "dong", "kasih", no formal terms |
+| `cerita` | 18 | The question inside a short account of what happened |
+| `susunan` | 29 | The same words in another order, or the law named in another way |
+
+- **Only the wording is new.** The date, the split, the expected sources, `must_not_cite` and the key come from the original (`variant_of`), so a variant adds no legal claim to check. What a reviewer checks is that it still asks the same thing.
+- `uv run pasalkini eval pasalkini --dataset variants` runs them. Run folders end in `-variants`.
+- They are **not** part of the 78: not in the tables of sections 1 to 8, not in the CI snapshot.
+- Tests (`tests/test_variants.py`) hold each variant to what code reads from its original: the same date, the same named articles, the same wage, nothing taken out as personal data.
+- The split rule applies here too: fixes are made from the 42 development variants; the 36 held-out ones are looked at as totals.
+
 ## Kinds of forbidden sources
 
 A `must_not_cite` label can mean either of two things:

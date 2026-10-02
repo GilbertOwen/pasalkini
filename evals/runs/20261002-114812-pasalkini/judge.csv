@@ -1,0 +1,79 @@
+id,split,grade,by,reason
+pkwt-001-a,dev,correct,model,
+pkwt-001-b,dev,correct,model,
+pkwt-001-c,dev,correct,model,
+alih-daya-001-a,test,correct,model,
+alih-daya-001-b,test,wrong,code,menolak atau menjawab di luar kunci
+pesangon-001-a,dev,correct,model,
+pesangon-001-b,dev,correct,model,
+istirahat-001-a,dev,wrong,model,poin 1 bertentangan
+istirahat-001-b,dev,correct,model,
+upah-001-a,test,partly,model,poin 5 bertentangan
+upah-001-b,test,wrong,model,poin utama tidak disebut
+stable-001,dev,correct,model,
+status-001,dev,correct,model,
+status-002,test,correct,model,
+changed-001,dev,partly,model,poin utama tidak disebut
+calc-001,dev,correct,model,
+date-001,dev,correct,model,
+date-002,test,correct,model,
+abstain-001,dev,correct,code,menolak dengan tepat
+adversarial-001,dev,correct,code,menolak dengan tepat
+lembur-001-a,test,correct,model,
+lembur-001-b,test,correct,model,
+mingguan-001-a,dev,correct,model,
+mingguan-001-b,dev,correct,model,
+mingguan-001-c,dev,correct,model,
+istirahat-001-c,dev,correct,model,
+kompensasi-001-a,dev,wrong,model,poin utama tidak disebut
+kompensasi-001-b,dev,correct,model,
+resign-001-a,dev,correct,model,
+resign-001-b,dev,correct,model,
+phk-001-a,test,correct,model,
+phk-001-b,test,partly,model,poin utama tidak disebut
+phk-001-c,test,correct,model,
+penangguhan-001-a,dev,partly,model,poin utama tidak disebut
+penangguhan-001-b,dev,partly,model,poin utama tidak disebut
+mikro-001-a,dev,correct,model,
+mikro-001-b,dev,correct,model,
+sektoral-001-a,test,correct,model,
+sektoral-001-b,test,wrong,model,poin 1 bertentangan
+sektoral-001-c,test,correct,model,
+sektoral-001-d,test,correct,model,
+pesangon-002-a,dev,correct,model,
+pesangon-002-b,dev,wrong,model,poin utama tidak disebut
+pesangon-002-c,dev,correct,model,
+uph-001-a,test,correct,model,
+uph-001-b,test,correct,model,
+uph-001-c,test,wrong,code,menolak atau menjawab di luar kunci
+jkp-001-a,dev,wrong,model,poin 1 bertentangan
+jkp-001-b,dev,correct,model,
+stable-002,dev,correct,model,
+stable-003,dev,correct,model,
+date-003,dev,partly,model,larangan 1 dilanggar
+date-004,dev,correct,model,
+date-005,dev,correct,model,
+status-003,dev,correct,model,
+status-004,test,correct,model,
+changed-002,dev,correct,model,
+calc-002,dev,correct,model,
+abstain-002,dev,correct,code,menolak dengan tepat
+abstain-003,dev,correct,code,menolak dengan tepat
+adversarial-002,dev,correct,model,
+abstain-004,test,correct,code,menolak dengan tepat
+abstain-005,test,correct,code,menolak dengan tepat
+abstain-006,test,correct,code,menolak dengan tepat
+abstain-007,test,correct,code,menolak dengan tepat
+abstain-008,test,correct,code,menolak dengan tepat
+adversarial-003,test,partly,model,poin utama tidak disebut
+adversarial-004,test,correct,code,menolak dengan tepat
+adversarial-005,test,wrong,model,poin 1 bertentangan
+calc-003,test,correct,model,
+calc-004,test,correct,model,
+calc-005,test,correct,model,
+changed-003,test,partly,model,poin utama tidak disebut
+changed-004,test,correct,model,
+stable-004,test,wrong,model,poin 1 bertentangan
+stable-005,test,correct,model,
+date-006,test,correct,model,
+date-007,test,correct,model,

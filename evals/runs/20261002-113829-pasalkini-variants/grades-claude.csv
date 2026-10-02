@@ -1,0 +1,43 @@
+id,grade,error,note
+pkwt-001-a-v,wrong,selection,Quotes Pasal 59 ayat (3) and says there is no maximum; ayat (4) sets 2 years plus 1
+pkwt-001-b-v,correct,,
+pkwt-001-c-v,partly,retrieval,"5 years is right; explains it as a limit for work expected to finish soon (PP 35/2021 Pasal 6), Pasal 8 not in the context"
+pesangon-001-a-v,correct,,
+pesangon-001-b-v,partly,,Gives 1 times for efficiency to prevent losses; leaves out the 0.5 times when the company is making losses
+istirahat-001-a-v,partly,reasoning,Right that it applies only at certain companies; does not say what the entitlement is
+istirahat-001-b-v,correct,,
+stable-001-v,correct,,
+status-001-v,wrong,,The year in the law's name was read as the question's date; answered for 1 July 2003
+changed-001-v,wrong,retrieval,'outsourcing' found no outsourcing article; compares two wordings of Pasal 95
+calc-001-v,correct,,
+date-001-v,correct,,
+abstain-001-v,correct,,
+adversarial-001-v,correct,,
+mingguan-001-a-v,correct,,
+mingguan-001-b-v,correct,,
+mingguan-001-c-v,correct,,
+istirahat-001-c-v,partly,reasoning,Says there is no automatic guarantee; the note by code says the choice is gone
+kompensasi-001-a-v,partly,retrieval,"Right that there is none in 2019; argues from the severance articles, Pasal 61 and 62 not in the context"
+kompensasi-001-b-v,correct,,
+resign-001-a-v,partly,calculation,"Only the compensation for rights; 'saya dapat apa saja' did not start the calculator, so no separation pay"
+resign-001-b-v,correct,,
+penangguhan-001-a-v,correct,,
+penangguhan-001-b-v,partly,selection,"Right conclusion; argues from the duty to pay on time, though Pasal 23 was in the context"
+mikro-001-a-v,partly,retrieval,"Right conclusion; cites the article on probation, Pasal 90 not in the context"
+mikro-001-b-v,correct,,
+pesangon-002-a-v,correct,,
+pesangon-002-b-v,wrong,cut-off,"The selection copied the whole severance table and was cut off, twice; abstained"
+pesangon-002-c-v,wrong,cut-off,Same
+jkp-001-a-v,wrong,reasoning,"Reads JKP into social security in general (Pasal 99), as the original does"
+jkp-001-b-v,correct,,Cites Pasal 83 (BPJS) instead of Pasal 82; the answer is right
+stable-002-v,correct,,
+stable-003-v,correct,,
+date-003-v,correct,,
+date-004-v,correct,,
+date-005-v,correct,,
+status-003-v,correct,,Written by the model. The article named apart from its law was not recognised as a status question
+changed-002-v,wrong,retrieval,Compares transitional provisions of PP 35/2021; Pasal 78 not in the context
+calc-002-v,correct,,
+abstain-002-v,wrong,classification,A tax question answered as labor law: 'pajak maksimal 50%' from the limit on wage deductions
+abstain-003-v,correct,,
+adversarial-002-v,correct,,
