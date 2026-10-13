@@ -16,6 +16,7 @@ from pasalkini.ui.render import (
     provision_html,
     rupiah,
     version_label,
+    versions_html,
 )
 
 
@@ -65,7 +66,9 @@ def test_law_that_began_later_is_opened_as_it_stood_when_it_began(tmp_path):
     later = picks((COMPENSATION.source_id, "uang kompensasi diberikan dengan ketentuan"))
     service = make_service(tmp_path, ScriptedChat(selections=[picks(), later]))
     payload = service.ask("Apakah pekerja kontrak berhak uang kompensasi?", IN_2019)
-    assert chips(payload) == [("PP 35/2021 Pasal 16", "pp-35-2021/pasal-16@2021-02-02")]
+    assert chips(payload) == [
+        ("PP 35/2021 Pasal 16 (berlaku sejak 2 Februari 2021)", "pp-35-2021/pasal-16@2021-02-02")
+    ]
     shown = answer_html(payload)
     assert "<h4>Aturan yang berlaku kemudian</h4>" in shown and "<h4>Sumber</h4>" not in shown
     early = provision_html(service.provision("pp-35-2021/pasal-16", IN_2019))
@@ -79,28 +82,41 @@ def test_a_wording_that_had_ended_is_listed_apart_and_opened_as_it_stood(tmp_pat
     assert [p["source_id"] for p in payload["citations"]] == ["uu-11-2020/pasal-81/angka-22"]
     assert [p["source_id"] for p in payload["earlier"]] == ["uu-13-2003/pasal-78"]
     shown = answer_html(payload)
-    heading = "<h4>Bunyi sebelumnya (tidak berlaku lagi pada tanggal itu)</h4>"
+    # Folded, after the sources: it is the record, not the answer.
+    heading = '<details class="pk-fold"><summary>Bunyi sebelumnya (tidak berlaku lagi pada'
     assert shown.index("<h4>Sumber</h4>") < shown.index(heading)
     assert shown.index(heading) < shown.index("paling banyak 3 (tiga) jam")
+    assert shown.index("<h4>Sumber</h4>") < shown.index("Riwayat pasal (oleh program)")
     # The article can be opened in both wordings: today's, and the first as it stood in 2003.
     assert chips(payload) == [
         ("UU 13/2003 Pasal 78", "uu-13-2003/pasal-78@2026-10-01"),
-        ("UU 13/2003 Pasal 78", "uu-13-2003/pasal-78@2003-03-25"),
+        (
+            "UU 13/2003 Pasal 78 (bunyi sebelumnya, sejak 25 Maret 2003)",
+            "uu-13-2003/pasal-78@2003-03-25",
+        ),
     ]
 
 
 def test_a_conditional_article_is_marked(tmp_path):
     found = make_service(tmp_path).provision("uu-13-2003/pasal-78", date(2022, 1, 1))
-    assert '<span class="pk-badge">berlaku bersyarat</span>' in provision_html(found)
+    assert '<span class="pk-badge pk-conditional">berlaku bersyarat</span>' in provision_html(found)
 
 
 def test_an_articles_history_lists_every_version_once(tmp_path):
     found = make_service(tmp_path).history("uu-13-2003/pasal-78")
-    shown = history_html(found)
-    assert "<h3>UU 13/2003 Pasal 78</h3>" in shown and "Riwayat UU 13/2003 Pasal 78:" in shown
-    assert shown.count("paling banyak 3 (tiga) jam") == 1
-    assert shown.count("paling lama 4 (empat) jam") == 1  # the third version repeats the second
-    assert "Bunyi sama dengan versi sebelumnya" in shown
+    shown = history_html(found, date(2026, 10, 1))
+    assert "<h3>UU 13/2003 Pasal 78</h3>" in shown
+    # One stretch of the bar per version, coloured by status, the first from 2003 to 2020.
+    assert shown.count('class="pk-stretch') == 3
+    assert '<span class="pk-stretch pk-conditional"' in shown
+    assert 'style="left:0.00%;width:74.87%"' in shown
+    # The timeline as code states it, one period per row, its source ID set apart.
+    assert '<span class="pk-when">25 Maret 2003 s.d. 1 November 2020</span>' in shown
+    assert '<code class="pk-id">uu-13-2003/pasal-78</code>' in shown
+    full = versions_html(found)
+    assert full.count("paling banyak 3 (tiga) jam") == 1
+    assert full.count("paling lama 4 (empat) jam") == 1  # the third version repeats the second
+    assert "Bunyi sama dengan versi sebelumnya" in full
     labels = [version_label(n, v) for n, v in enumerate(found["versions"], start=1)]
     assert labels == [
         "1. berlaku 25 Maret 2003 s.d. 1 November 2020 · UU 13/2003",
@@ -111,10 +127,11 @@ def test_an_articles_history_lists_every_version_once(tmp_path):
 
 def test_changes_between_two_versions_are_marked_word_by_word():
     shown = diff_html("paling banyak 3 (tiga) jam", "paling lama 4 (empat) jam")
-    assert shown == (
+    assert shown.endswith(
         '<div class="pk-legal pk-diff">paling <del>banyak 3 (tiga)</del> '
         "<ins>lama 4 (empat)</ins> jam</div>"
     )
+    assert "Dicoret: dihapus dari versi lama" in shown
 
 
 def test_a_law_on_a_date_says_how_much_of_it_is_amended(tmp_path):

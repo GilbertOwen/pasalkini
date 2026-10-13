@@ -30,6 +30,7 @@ from pasalkini.ui.render import (
     notice,
     provision_html,
     version_label,
+    versions_html,
 )
 
 PATH = "/ui"
@@ -192,7 +193,54 @@ CSS = """
 .pk-table th, .pk-table td { border-bottom: 1px solid var(--border-color-primary);
   padding: 6px 10px; text-align: left; vertical-align: top; }
 .pk-amount { text-align: right !important; white-space: nowrap; }
-.pk-foot { font-size: 0.85em; color: var(--body-text-color-subdued); margin: 24px 0 8px; }
+.pk-answer { background: var(--background-fill-primary);
+  border: 1px solid var(--border-color-primary);
+  border-radius: 4px; padding: 18px 22px 12px; margin-top: 4px; }
+.pk-answer > .pk-group, .pk-answer > .pk-changed { margin-top: 18px; }
+.pk-changed { border-left: 3px solid var(--pk-amber); padding: 0 0 0 14px; }
+.pk-changed h4 { margin-top: 0 !important; }
+.pk-changed ul { margin: 4px 0; padding-left: 18px; }
+.pk-fold { border-top: 1px solid var(--border-color-primary); margin-top: 14px; padding-top: 10px; }
+.pk-fold summary { cursor: pointer; font-weight: 600; width: fit-content; }
+.pk-fold summary:focus-visible { outline: 2px solid var(--pk-blue); outline-offset: 2px; }
+.pk-fold[open] summary { margin-bottom: 8px; }
+.pk-small { border-top: 1px solid var(--border-color-primary); margin-top: 16px; padding-top: 8px;
+  font-size: 0.84em; color: var(--body-text-color-subdued); }
+.pk-small p { margin: 2px 0; }
+.pk-timeline { font-size: 0.94em; }
+.pk-periods { list-style: none; padding: 0; margin: 4px 0 8px; }
+.pk-periods li { display: grid; grid-template-columns: minmax(150px, 15em) 1fr; gap: 2px 16px;
+  padding: 5px 0; border-bottom: 1px solid var(--border-color-primary); }
+.pk-when { color: var(--body-text-color-subdued); }
+.pk-now { font-weight: 600; margin: 8px 0 4px; }
+.pk-subhead { font-size: 1em; font-weight: 600; margin: 18px 0 2px; }
+.pk-bar { position: relative; height: 28px; margin: 14px 0 4px;
+  background: var(--background-fill-secondary);
+  border: 1px solid var(--border-color-primary); border-radius: 3px; overflow: hidden; }
+.pk-stretch { position: absolute; top: 0; bottom: 0; display: flex; align-items: center;
+  justify-content: center; font-size: 0.8em; font-weight: 600; color: #FFFFFF;
+  border-right: 2px solid var(--background-fill-primary); box-sizing: border-box; }
+.pk-in_force { background: var(--pk-green); }
+.pk-conditional { background: var(--pk-amber); }
+.pk-repealed { background: repeating-linear-gradient(135deg, var(--pk-brick) 0 4px,
+  transparent 4px 8px); color: var(--pk-brick); }
+.dark .pk-stretch { color: #10161F; }
+.pk-axis { display: flex; justify-content: space-between; font-size: 0.82em;
+  color: var(--body-text-color-subdued); }
+.pk-legend { font-size: 0.82em; color: var(--body-text-color-subdued); margin: 6px 0 12px; }
+.pk-key { display: inline-block; width: 10px; height: 10px; border-radius: 2px;
+  margin: 0 4px 0 10px; vertical-align: -1px; }
+.pk-key:first-child { margin-left: 0; }
+.pk-version { border-top: 1px solid var(--border-color-primary); padding-top: 6px;
+  margin-top: 10px; }
+.pk-version h5 { font-size: 0.95em; font-weight: 600; margin: 4px 0; }
+.pk-badge.pk-conditional { background: none; border-color: var(--pk-amber);
+  color: var(--pk-amber); }
+.pk-badge.pk-repealed { background: none; border-color: var(--pk-brick); color: var(--pk-brick); }
+@media (max-width: 640px) { .pk-periods li { grid-template-columns: 1fr; }
+  .pk-answer { padding: 14px 14px 10px; } }
+.pk-foot, .pk-foot p { font-size: 0.85em !important; color: var(--body-text-color-subdued);
+  margin: 24px 0 8px; }
 @media (max-width: 640px) { .pk-date { font-size: 1.25em; } .pk-head h1 { font-size: 1.6em; } }
 """
 
@@ -214,14 +262,16 @@ def chips(payload: dict) -> list[tuple[str, str]]:
     began."""
     found: dict[str, str] = {}
     groups = [
-        (payload["citations"] + payload["nearest"], None),
-        (payload["earlier"], "valid_from"),
-        (payload["later"], "valid_from"),
+        (payload["citations"] + payload["nearest"], None, ""),
+        (payload["earlier"], "valid_from", "bunyi sebelumnya, sejak"),
+        (payload["later"], "valid_from", "berlaku sejak"),
     ]
-    for passages, own_date in groups:
+    for passages, own_date, which in groups:
         for passage in passages:
             day = passage.get(own_date) if own_date else payload["as_of"]
             name = passage["title"].split(" (")[0]
+            if which:  # the same article can be listed in two wordings: say which this is
+                name += f" ({which} {format_date(date.fromisoformat(day))})"
             found.setdefault(f"{passage['provision_id']}@{day}", name)
     return [(name, value) for value, name in found.items()]
 
@@ -263,23 +313,26 @@ def build(service: Service) -> gr.Blocks:
         found = service.history(provision_id) if provision_id else None
         if found is None:
             empty = gr.update(choices=[], value=None)
-            return ("" if not provision_id else history_html(None)), empty, empty, ""
+            shown = "" if not provision_id else history_html(None)
+            return shown, empty, empty, "", ""
         versions = found["versions"]
         choices = [(version_label(n, v), n - 1) for n, v in enumerate(versions, start=1)]
-        # Compare the latest wording with the one before it that reads differently. A deletion
-        # in between has no wording to compare with.
+        # Compare the latest wording with the first one that reads differently, usually the
+        # original: a re-enactment in between often differs only by scanning errors. A deletion
+        # has no wording to compare with.
         last = len(versions) - 1
         earlier = [
             n
             for n in range(last)
             if versions[n]["text"] != versions[last]["text"] and versions[n]["status"] != "repealed"
         ]
-        before = earlier[-1] if earlier else 0
+        before = earlier[0] if earlier else 0
         return (
-            history_html(found),
+            history_html(found, service.today()),
             gr.update(choices=choices, value=before),
             gr.update(choices=choices, value=last),
             compare(provision_id, before, last),
+            versions_html(found),
         )
 
     def compare(provision_id: str | None, old: int | None, new: int | None) -> str:
@@ -363,12 +416,6 @@ def build(service: Service) -> gr.Blocks:
                 '<p class="pk-hint">Kosongkan tanggal untuk hari ini. Tanggal yang ditulis di '
                 "dalam pertanyaan (misalnya “Maret 2019”) didahulukan.</p>"
             )
-            with gr.Column(elem_classes="pk-examples"):
-                gr.HTML('<p class="pk-examples-title">Coba salah satu pertanyaan ini:</p>')
-                for text, day in EXAMPLES:
-                    shown = f"{text} ({format_date(date.fromisoformat(day))})" if day else text
-                    example = gr.Button(shown, size="sm", elem_classes="pk-example")
-                    example.click(lambda t=text, d=day: (t, d), None, [question, asked_day])
             status = gr.Markdown(elem_classes="pk-status")
             answer = gr.HTML()
             cited = gr.Radio(
@@ -377,6 +424,12 @@ def build(service: Service) -> gr.Blocks:
                 visible=False,
             )
             article = gr.HTML()
+            with gr.Column(elem_classes="pk-examples"):
+                gr.HTML('<p class="pk-examples-title">Coba salah satu pertanyaan ini:</p>')
+                for text, day in EXAMPLES:
+                    shown = f"{text} ({format_date(date.fromisoformat(day))})" if day else text
+                    example = gr.Button(shown, size="sm", elem_classes="pk-example")
+                    example.click(lambda t=text, d=day: (t, d), None, [question, asked_day])
             outputs = [status, answer, cited, article]
             ask_button.click(ask, [question, asked_day], outputs)
             question.submit(ask, [question, asked_day], outputs)
@@ -389,18 +442,21 @@ def build(service: Service) -> gr.Blocks:
                     article_choices(first_law), value=None, label="Pasal", filterable=True
                 )
             timeline = gr.HTML()
-            gr.Markdown("### Bandingkan dua versi")
+            gr.HTML('<h4 class="pk-subhead">Bandingkan dua versi</h4>')
             with gr.Row():
                 old_version = gr.Dropdown([], label="Versi lama", type="value")
                 new_version = gr.Dropdown([], label="Versi baru", type="value")
             changes = gr.HTML()
+            all_versions = gr.HTML()
             history_law.change(
                 lambda law: gr.update(choices=article_choices(law), value=None),
                 history_law,
                 history_article,
             )
             history_article.change(
-                show_history, history_article, [timeline, old_version, new_version, changes]
+                show_history,
+                history_article,
+                [timeline, old_version, new_version, changes, all_versions],
             )
             versions_picked = [history_article, old_version, new_version]
             old_version.input(compare, versions_picked, changes)

@@ -6,6 +6,7 @@ question, the model or a document is escaped.
 """
 
 import html
+import re
 from datetime import date
 
 from pasalkini.answer.pipeline import EARLIER_HEADING
@@ -44,6 +45,38 @@ def notice(text: str) -> str:
     return f'<div class="pk-notice">{esc(text)}</div>'
 
 
+def badge(status: str) -> str:
+    """An article's status, in its colour. Nothing for an article simply in force."""
+    word = STATUS_BADGES.get(status)
+    return f' <span class="pk-badge pk-{esc(status)}">{esc(word)}</span>' if word else ""
+
+
+ID_IN_TEXT = re.compile(r"\s*\[([^\]\s]+)\]")
+
+
+def timeline_html(text: str) -> str:
+    """A timeline as code writes it ('- 25 Maret 2003 s.d. 1 November 2020: bunyi asli [id]',
+    then 'Pada …: …'), as a list of periods: when, what, and the source ID set apart."""
+    blocks = []
+    for chunk in text.strip().split("\n\n"):
+        rows, closing = [], []
+        for line in chunk.splitlines():
+            ids = " ".join(source_code(found) for found in ID_IN_TEXT.findall(line))
+            plain = ID_IN_TEXT.sub("", line)
+            if plain.startswith("- "):
+                when, _, what = plain[2:].partition(": ")
+                rows.append(
+                    f'<li><span class="pk-when">{esc(when)}</span>'
+                    f'<span class="pk-what">{esc(what)} {ids}</span></li>'
+                )
+            elif plain.startswith("Riwayat ") and plain.endswith(":"):
+                continue  # the article's name: the heading above says it
+            else:
+                closing.append(f'<p class="pk-now">{esc(plain)} {ids}</p>')
+        blocks.append(f'<ol class="pk-periods">{"".join(rows)}</ol>{"".join(closing)}')
+    return '<div class="pk-timeline">' + "".join(blocks) + "</div>"
+
+
 def source_code(source_id: str) -> str:
     return f'<code class="pk-id">{esc(source_id)}</code>'
 
@@ -66,6 +99,7 @@ def passages(title: str, found: list[dict], role: str = "source") -> str:
     after it)."""
     if not found:
         return ""
+    heading = f"<h4>{esc(title)}</h4>" if title else ""
     rows = "".join(
         f'<li><span class="pk-source">{esc(p["title"])}</span> '
         f'<code class="pk-id">{esc(p["source_id"])}</code>'
@@ -73,13 +107,15 @@ def passages(title: str, found: list[dict], role: str = "source") -> str:
         for p in found
     )
     return (
-        f'<section class="pk-group pk-{role}"><h4>{esc(title)}</h4>'
+        f'<section class="pk-group pk-{role}">{heading}'
         f'<ul class="pk-passages">{rows}</ul></section>'
     )
 
 
 def answer_html(payload: dict) -> str:
-    """One answer: what was asked about which date, the answer, and everything it rests on."""
+    """One answer, in the order a reader needs it: the date it is for, the answer, the law it
+    rests on, then what changed later. The longer record (the article's timeline, earlier
+    wordings) is folded, and the small print comes last."""
     parts = []
     if payload["looked_up"]:  # a refusal looks nothing up, so it has no date to state
         day, _, source = payload["as_of_text"].partition(" (")
@@ -91,14 +127,19 @@ def answer_html(payload: dict) -> str:
     parts.append(f'<div class="pk-said">{esc(payload["answer"])}</div>')
     if payload["calculation"]:
         parts.append("<h4>Hitungan (oleh program)</h4>" + record(payload["calculation"]["text"]))
-    if payload["timeline"]:
-        parts.append("<h4>Riwayat (oleh program)</h4>" + record(payload["timeline"]))
     parts.append(passages("Sumber", payload["citations"]))
     parts.append(passages("Kutipan terdekat yang ditemukan", payload["nearest"], "nearest"))
-    parts.append(passages(EARLIER_HEADING, payload["earlier"], "earlier"))
     parts.append(passages("Aturan yang berlaku kemudian", payload["later"], "later"))
     if payload["changed_since"]:
-        parts.append("<h4>Perubahan sesudah tanggal itu</h4>" + items(payload["changed_since"]))
+        parts.append(
+            '<section class="pk-changed"><h4>Perubahan sesudah tanggal itu</h4>'
+            + items(payload["changed_since"])
+            + "</section>"
+        )
+    if payload["timeline"]:
+        parts.append(folded("Riwayat pasal (oleh program)", timeline_html(payload["timeline"])))
+    if payload["earlier"]:
+        parts.append(folded(EARLIER_HEADING, passages("", payload["earlier"], "earlier")))
     if payload["caveats"]:
         parts.append("<h4>Catatan</h4>" + items(payload["caveats"]))
     if payload["referral"]:
@@ -115,9 +156,15 @@ def answer_html(payload: dict) -> str:
     else:
         seconds = f"{payload['seconds'].get('total', 0):.1f}".replace(".", ",")
         facts.append(f"Dijawab dalam {seconds} detik.")
-    parts.append(f'<div class="pk-meta">{esc(" ".join(facts))}</div>')
-    parts.append(f'<div class="pk-meta">{esc(DISCLAIMER)}</div>')
+    parts.append(
+        f'<footer class="pk-small"><p>{esc(" ".join(facts))}</p><p>{esc(DISCLAIMER)}</p></footer>'
+    )
     return '<div class="pk-answer">' + "".join(parts) + "</div>"
+
+
+def folded(title: str, body: str) -> str:
+    """A section closed until the reader opens it."""
+    return f'<details class="pk-fold"><summary>{esc(title)}</summary>{body}</details>'
 
 
 def provision_html(found: dict | None) -> str:
@@ -126,11 +173,8 @@ def provision_html(found: dict | None) -> str:
         return notice("Pasal ini tidak ada dalam sumber PasalKini.")
     if not found["exists_on_date"]:
         return notice(found["message"])
-    badge = STATUS_BADGES.get(found["status"])
-    head = f"<h4>{esc(found['title'])}"
-    head += f' <span class="pk-badge">{esc(badge)}</span></h4>' if badge else "</h4>"
     parts = [
-        head,
+        f"<h4>{esc(found['title'])}{badge(found['status'])}</h4>",
         f'<div class="pk-meta">Bunyi dari {esc(found["published_in"])} '
         f'<code class="pk-id">{esc(found["source_id"])}</code>, menurut keadaan pada '
         f"{esc(day_text(found['as_of']))}</div>",
@@ -149,7 +193,10 @@ def diff_html(old: str, new: str) -> str:
     """Word-level changes: removed words struck through, added words underlined."""
     marks = {"-": "<del>{}</del>", "+": "<ins>{}</ins>", None: "{}"}
     words = " ".join(marks[kind].format(esc(text)) for text, kind in diff_segments(old, new))
-    return f'<div class="pk-legal pk-diff">{words}</div>'
+    return (
+        '<p class="pk-meta">Dicoret: dihapus dari versi lama. Digarisbawahi: ditambahkan di '
+        f'versi baru.</p><div class="pk-legal pk-diff">{words}</div>'
+    )
 
 
 def version_label(number: int, version: dict) -> str:
@@ -160,16 +207,58 @@ def version_label(number: int, version: dict) -> str:
     return " · ".join(parts)
 
 
-def history_html(found: dict | None) -> str:
-    """An article's timeline as code states it, then every version in full."""
+def history_html(found: dict | None, today: date | None = None) -> str:
+    """An article's history: each wording as a stretch of a bar from its first day to today,
+    coloured by its status, then the timeline as code states it."""
     if found is None:
         return notice("Pasal ini tidak ada dalam sumber PasalKini.")
-    parts = [f"<h3>{esc(found['label'])}</h3>"]
+    parts = [f"<h3>{esc(found['label'])}</h3>", history_bar(found["versions"], today)]
     if found["timeline"]:
-        parts.append(record(found["timeline"]))
+        parts.append(timeline_html(found["timeline"]))
+    return '<div class="pk-article">' + "".join(parts) + "</div>"
+
+
+def history_bar(versions: list[dict], today: date | None = None) -> str:
+    """One stretch per version, in proportion to how long it applied, numbered as in the list
+    below. A deleted article's stretch is hatched."""
+    if not versions:
+        return ""
+    first = date.fromisoformat(versions[0]["valid_from"])
+    last = today or date.today()
+    span = max((last - first).days, 1)
+    stretches = []
+    for number, version in enumerate(versions, start=1):
+        begin = date.fromisoformat(version["valid_from"])
+        end = date.fromisoformat(version["valid_to"]) if version["valid_to"] else last
+        left = 100 * (begin - first).days / span
+        width = max(100 * (end - begin).days / span, 0.6)
+        label = f"{number}. {version['validity']}, {version['published_in']}"
+        shown = str(number) if width >= 4 else ""
+        stretches.append(
+            f'<span class="pk-stretch pk-{esc(version["status"])}" title="{esc(label)}" '
+            f'style="left:{left:.2f}%;width:{width:.2f}%">{shown}</span>'
+        )
+    return (
+        f'<div class="pk-bar" role="img" aria-label="Masa berlaku tiap versi">'
+        f"{''.join(stretches)}</div>"
+        f'<div class="pk-axis"><span>{esc(format_date(first))}</span>'
+        f"<span>{esc(format_date(last))}</span></div>"
+        '<div class="pk-legend"><span class="pk-key pk-in_force"></span>berlaku '
+        '<span class="pk-key pk-conditional"></span>berlaku bersyarat '
+        '<span class="pk-key pk-repealed"></span>dihapus</div>'
+    )
+
+
+def versions_html(found: dict | None) -> str:
+    """Every version of the article in full, oldest first."""
+    if found is None:
+        return ""
+    parts = ["<h4>Semua versi</h4>"]
     for number, version in enumerate(found["versions"], start=1):
-        parts.append(f"<h4>{esc(version_label(number, version))}</h4>")
-        parts.append(f'<div class="pk-meta">{source_code(version["source_id"])}</div>')
+        parts.append(
+            f'<section class="pk-version"><h5>{esc(version_label(number, version))}</h5>'
+            f'<div class="pk-meta">{source_code(version["source_id"])}</div>'
+        )
         if version["same_text_as_previous"]:
             parts.append(
                 '<div class="pk-meta">Bunyi sama dengan versi sebelumnya; yang berubah adalah '
@@ -180,6 +269,7 @@ def history_html(found: dict | None) -> str:
         if version["notes"]:
             parts.append('<div class="pk-meta">Catatan pada versi ini:</div>')
             parts.append(items(version["notes"]))
+        parts.append("</section>")
     return '<div class="pk-article">' + "".join(parts) + "</div>"
 
 
@@ -200,10 +290,7 @@ def law_html(found: dict | None) -> str:
         summary += f", {conditional} berlaku bersyarat"
     parts = [f'<div class="pk-asof">{esc(summary)}.</div>']
     for article in articles:
-        badge = STATUS_BADGES.get(article["status"])
-        head = f"<h4>{esc(article['label'])}"
-        head += f' <span class="pk-badge">{esc(badge)}</span></h4>' if badge else "</h4>"
-        parts.append(head)
+        parts.append(f"<h4>{esc(article['label'])}{badge(article['status'])}</h4>")
         parts.append(
             f'<div class="pk-meta">{esc(article["validity"])}; bunyi dari '
             f'<code class="pk-id">{esc(article["source_id"])}</code></div>'
