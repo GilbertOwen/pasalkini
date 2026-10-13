@@ -21,11 +21,13 @@ from pasalkini.ui.render import (
 
 def test_an_answer_shows_the_date_the_answer_and_what_it_rests_on(tmp_path):
     shown = answer_html(make_service(tmp_path).ask(QUESTION, IN_2019))
-    assert "Menurut hukum yang berlaku pada 1 Juni 2019 (tanggal dari pemilih tanggal):" in shown
+    # The date the answer is for leads, on its own line.
+    assert '<span class="pk-date">1 Juni 2019</span>' in shown
+    assert '<span class="pk-asof-source">(tanggal dari pemilih tanggal)</span>' in shown
     assert f'<div class="pk-said">{SAID}</div>' in shown
     assert "<h4>Sumber</h4>" in shown and "<blockquote>paling banyak 3 (tiga) jam" in shown
     assert "<h4>Perubahan sesudah tanggal itu</h4><ul><li>UU 13/2003 Pasal 78: diubah" in shown
-    assert "keyakinan: tinggi · jenis pertanyaan: penjelasan aturan" in shown
+    assert "Keyakinan: tinggi. Jenis pertanyaan: penjelasan aturan." in shown
     assert "Informasi hukum, bukan nasihat hukum." in shown
     assert "Kutipan terdekat" not in shown and "Aturan yang berlaku kemudian" not in shown
 
@@ -33,9 +35,9 @@ def test_an_answer_shows_the_date_the_answer_and_what_it_rests_on(tmp_path):
 def test_a_refusal_shows_no_date_and_no_confidence(tmp_path):
     service = make_service(tmp_path, ScriptedChat(intent="di_luar_cakupan"))
     shown = answer_html(service.ask("Bagaimana pembagian harta gono-gini?"))
-    assert "Menurut hukum yang berlaku" not in shown and "keyakinan" not in shown
+    assert "Menurut hukum yang berlaku" not in shown and "Keyakinan" not in shown
     assert "Sebaiknya tanyakan ke: instansi yang berwenang" in shown
-    assert "jenis pertanyaan: di luar cakupan" in shown
+    assert "Jenis pertanyaan: di luar cakupan." in shown
 
 
 def test_a_cached_answer_says_so(tmp_path):

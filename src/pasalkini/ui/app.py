@@ -33,14 +33,20 @@ from pasalkini.ui.render import (
 )
 
 PATH = "/ui"
+HEADER = """<header class="pk-head">
+<h1>PasalKini</h1>
+<p>Hukum ketenagakerjaan Indonesia, menurut bunyi yang berlaku pada tanggal yang Anda tanyakan.</p>
+</header>"""
 BANNER = """<div class="pk-banner">
-<strong>Informasi hukum, bukan nasihat hukum.</strong> PasalKini menjawab dengan bantuan AI
-(model bahasa yang berjalan di komputer ini) dari teks peraturan resmi, menurut bunyi yang
-berlaku pada tanggal yang Anda tanyakan. Jawabannya dapat keliru: selalu periksa kutipan
-sumbernya. Untuk perselisihan atau tenggat waktu, hubungi Dinas Ketenagakerjaan, serikat
-pekerja, atau Lembaga Bantuan Hukum (LBH).<br>
-<strong>Jangan menuliskan data pribadi</strong> (nama lengkap, NIK, nomor telepon). Pertanyaan
-dicatat tanpa data pribadi di komputer ini selama 30 hari, lalu dihapus.
+<p><strong>Informasi hukum, bukan nasihat hukum.</strong> Jawaban disusun oleh AI yang berjalan di
+komputer ini, dari teks peraturan resmi, dan dapat keliru: selalu periksa kutipan sumbernya.</p>
+<details><summary>Selengkapnya</summary>
+<p>PasalKini menjawab menurut bunyi peraturan yang berlaku pada tanggal yang Anda tanyakan, bukan
+menurut bunyi yang paling mirip dengan pertanyaan. Untuk perselisihan atau tenggat waktu, hubungi
+Dinas Ketenagakerjaan, serikat pekerja, atau Lembaga Bantuan Hukum (LBH).</p>
+<p>Pertanyaan dicatat di komputer ini tanpa data pribadi selama 30 hari, lalu dihapus. Jangan
+menuliskan nama lengkap, NIK atau nomor telepon.</p>
+</details>
 </div>"""
 EXAMPLES = [
     ["Kalau saya bekerja 5 hari dalam seminggu, berapa hari istirahat mingguan?", "2019-06-01"],
@@ -53,36 +59,141 @@ EXAMPLES = [
         None,
     ],
 ]
-THEME = gr.themes.Default(
-    font=["system-ui", "Segoe UI", "Roboto", "sans-serif"],
-    font_mono=["ui-monospace", "Consolas", "monospace"],
+
+# Colours carry meaning: ink and paper; one blue for what can be acted on; green, amber and
+# brick only for an article's status (in force, conditional, deleted). Fonts are the system's:
+# nothing is fetched from the internet. Quoted law is set in a serif, so that the text of a
+# regulation never looks like a sentence written by the model.
+INK, INK_DARK = "#1E2A3A", "#E3E7ED"
+MUTED, MUTED_DARK = "#5A6472", "#9BA4B1"
+PAPER, PAPER_DARK = "#FFFFFF", "#1A2029"
+PAGE, PAGE_DARK = "#F2F3F1", "#12161D"
+LINE, LINE_DARK = "#D8DBD5", "#2D3542"
+BLUE, BLUE_DARK = "#2B4C8C", "#93ACDD"
+THEME = gr.themes.Base(
+    font=["Segoe UI", "system-ui", "Roboto", "sans-serif"],
+    font_mono=["Consolas", "ui-monospace", "monospace"],
+).set(
+    body_background_fill=PAGE,
+    body_background_fill_dark=PAGE_DARK,
+    body_text_color=INK,
+    body_text_color_dark=INK_DARK,
+    body_text_color_subdued=MUTED,
+    body_text_color_subdued_dark=MUTED_DARK,
+    background_fill_primary=PAPER,
+    background_fill_primary_dark=PAPER_DARK,
+    background_fill_secondary=PAGE,
+    background_fill_secondary_dark=PAGE_DARK,
+    block_background_fill=PAPER,
+    block_background_fill_dark=PAPER_DARK,
+    block_border_color=LINE,
+    block_border_color_dark=LINE_DARK,
+    border_color_primary=LINE,
+    border_color_primary_dark=LINE_DARK,
+    block_shadow="none",
+    block_shadow_dark="none",
+    block_radius="4px",
+    input_radius="3px",
+    button_large_radius="3px",
+    button_medium_radius="3px",
+    button_small_radius="3px",
+    input_background_fill=PAPER,
+    input_background_fill_dark=PAGE_DARK,
+    input_border_color=LINE,
+    input_border_color_dark=LINE_DARK,
+    input_border_color_focus=BLUE,
+    input_border_color_focus_dark=BLUE_DARK,
+    color_accent=BLUE,
+    color_accent_soft="#E5EBF5",
+    color_accent_soft_dark="#243250",
+    border_color_accent=BLUE,
+    border_color_accent_dark=BLUE_DARK,
+    link_text_color=BLUE,
+    link_text_color_dark=BLUE_DARK,
+    button_primary_background_fill=BLUE,
+    button_primary_background_fill_dark=BLUE_DARK,
+    button_primary_background_fill_hover="#213C70",
+    button_primary_background_fill_hover_dark="#B0C3E8",
+    button_primary_border_color=BLUE,
+    button_primary_border_color_dark=BLUE_DARK,
+    button_primary_text_color="#FFFFFF",
+    button_primary_text_color_dark="#0F1726",
+    button_secondary_background_fill=PAPER,
+    button_secondary_background_fill_dark=PAPER_DARK,
+    button_secondary_border_color=LINE,
+    button_secondary_border_color_dark=LINE_DARK,
+    checkbox_label_background_fill_selected="#E5EBF5",
+    checkbox_label_background_fill_selected_dark="#243250",
+    checkbox_background_color_selected=BLUE,
+    checkbox_background_color_selected_dark=BLUE_DARK,
 )
 CSS = """
-.pk-banner { border: 1px solid var(--border-color-primary); border-left: 4px solid #d97706;
-  border-radius: 6px; padding: 10px 14px; font-size: 0.92em; line-height: 1.5;
-  background: var(--background-fill-secondary); }
-.pk-answer, .pk-article { line-height: 1.55; }
-.pk-asof { color: var(--body-text-color-subdued); margin-bottom: 6px; }
-.pk-said { font-size: 1.08em; font-weight: 600; margin: 6px 0 12px; white-space: pre-wrap; }
-.pk-legal { white-space: pre-wrap; border-left: 3px solid var(--border-color-primary);
-  padding: 4px 0 4px 12px; margin: 6px 0 12px; }
-.pk-passages { padding-left: 18px; }
-.pk-passages blockquote { margin: 4px 0 10px; padding: 2px 0 2px 12px; white-space: pre-wrap;
-  border-left: 3px solid var(--color-accent); }
+:root { --pk-blue: #2B4C8C; --pk-green: #2F6B3F; --pk-amber: #8A6100; --pk-brick: #8E2B2B;
+  --pk-serif: Cambria, Georgia, "Times New Roman", serif; }
+.dark { --color-accent: #93ACDD; --pk-blue: #93ACDD;
+  --pk-green: #84C295; --pk-amber: #DDB45A; --pk-brick: #DE8E8E; }
+.gradio-container { max-width: 880px !important; margin: 0 auto !important; }
+
+.pk-head { padding: 18px 0 4px; }
+.pk-head h1 { font-size: 1.9em; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+.pk-head p { margin: 2px 0 0; color: var(--body-text-color-subdued); }
+.pk-banner { border-left: 3px solid var(--pk-amber); padding: 2px 0 2px 14px;
+  font-size: 0.92em; line-height: 1.5; }
+.pk-banner p { margin: 4px 0; }
+.pk-banner summary { cursor: pointer; color: var(--link-text-color); width: fit-content; }
+.pk-banner summary:focus-visible { outline: 2px solid var(--pk-blue); outline-offset: 2px; }
+
+.pk-when { align-items: flex-end !important; }
+.pk-ask { flex-grow: 0 !important; min-height: 44px; margin-bottom: 1px; }
+.pk-hint { font-size: 0.86em; color: var(--body-text-color-subdued); margin: -4px 0 0; }
+.pk-status { color: var(--body-text-color-subdued); min-height: 1.4em; }
+.pk-examples { gap: 0 !important; }
+.pk-examples-title { font-size: 0.92em; color: var(--body-text-color-subdued); margin: 6px 0 2px; }
+.pk-example { justify-content: flex-start !important; text-align: left !important;
+  border: none !important; background: none !important; box-shadow: none !important;
+  color: var(--link-text-color) !important; font-weight: 400 !important;
+  padding: 3px 10px !important; min-height: 0 !important; white-space: normal !important;
+  font-size: 0.95em !important; }
+.pk-example:hover { text-decoration: underline; }
+
+.pk-answer, .pk-article { line-height: 1.6; }
+.pk-asof { margin: 4px 0 10px; }
+.pk-asof-lead { display: block; font-size: 0.9em; color: var(--body-text-color-subdued); }
+.pk-date { font-size: 1.45em; font-weight: 700; letter-spacing: -0.01em; }
+.pk-asof-source { font-size: 0.86em; color: var(--body-text-color-subdued); }
+.pk-said { font-size: 1.1em; margin: 6px 0 18px; white-space: pre-wrap; max-width: 68ch; }
+.pk-answer h4, .pk-article h4 { font-size: 0.98em; font-weight: 600; margin: 18px 0 6px; }
+.pk-legal { white-space: pre-wrap; font-family: var(--pk-serif); font-size: 1.04em;
+  font-weight: 400;
+  border-left: 2px solid var(--border-color-primary); padding: 2px 0 2px 14px;
+  margin: 6px 0 12px; max-width: 72ch; }
+.pk-record { white-space: pre-wrap; font-size: 0.93em; padding: 2px 0 2px 14px;
+  border-left: 2px solid var(--border-color-primary); margin: 6px 0 12px; }
+.pk-passages { list-style: none; padding: 0; margin: 0; }
+.pk-passages li { margin: 0 0 12px; }
+.pk-passages blockquote { margin: 4px 0 0; padding: 2px 0 2px 14px; white-space: pre-wrap;
+  font-family: var(--pk-serif); font-size: 1.04em; max-width: 72ch;
+  font-weight: 400; font-style: normal; border-left: 3px solid var(--pk-blue); }
+.pk-earlier blockquote { border-left: 3px dotted var(--body-text-color-subdued);
+  color: var(--body-text-color-subdued); }
+.pk-later blockquote { border-left: 3px dashed var(--pk-blue); }
+.pk-nearest blockquote { border-left-color: var(--border-color-primary); }
 .pk-source { font-weight: 600; }
-.pk-id { font-size: 0.82em; color: var(--body-text-color-subdued); }
-.pk-meta { font-size: 0.86em; color: var(--body-text-color-subdued); margin: 4px 0; }
+.pk-id { font-size: 0.8em; color: var(--body-text-color-subdued); background: none;
+  padding: 0; margin-left: 4px; }
+.pk-meta { font-size: 0.85em; color: var(--body-text-color-subdued); margin: 4px 0; }
 .pk-referral { font-weight: 600; }
-.pk-notice { border: 1px solid var(--border-color-primary); border-radius: 6px;
-  padding: 10px 14px; background: var(--background-fill-secondary); }
+.pk-notice { border-left: 3px solid var(--pk-amber); padding: 6px 0 6px 14px; }
 .pk-badge { font-size: 0.72em; font-weight: 600; padding: 1px 8px; border-radius: 10px;
-  border: 1px solid #d97706; color: #d97706; vertical-align: middle; }
-.pk-diff del { background: rgba(220, 38, 38, 0.22); text-decoration: line-through; }
-.pk-diff ins { background: rgba(22, 163, 74, 0.25); text-decoration: underline; }
+  border: 1px solid var(--pk-amber); color: var(--pk-amber); vertical-align: middle; }
+.pk-diff del { background: rgba(142, 43, 43, 0.16); text-decoration: line-through; }
+.pk-diff ins { background: rgba(47, 107, 63, 0.18); text-decoration: underline; }
 .pk-table { border-collapse: collapse; width: 100%; margin: 8px 0 12px; }
-.pk-table th, .pk-table td { border: 1px solid var(--border-color-primary); padding: 6px 10px;
-  text-align: left; vertical-align: top; }
+.pk-table th, .pk-table td { border-bottom: 1px solid var(--border-color-primary);
+  padding: 6px 10px; text-align: left; vertical-align: top; }
 .pk-amount { text-align: right !important; white-space: nowrap; }
+.pk-foot { font-size: 0.85em; color: var(--body-text-color-subdued); margin: 24px 0 8px; }
+@media (max-width: 640px) { .pk-date { font-size: 1.25em; } .pk-head h1 { font-size: 1.6em; } }
 """
 
 
@@ -228,26 +339,37 @@ def build(service: Service) -> gr.Blocks:
 
     today = service.today().isoformat()
     with gr.Blocks(title="PasalKini", analytics_enabled=False) as blocks:
-        gr.Markdown("# PasalKini\nHukum ketenagakerjaan Indonesia, menurut tanggal.")
+        gr.HTML(HEADER)
         gr.HTML(BANNER)
 
         with gr.Tab("Tanya"):
-            with gr.Row():
-                question = gr.Textbox(
-                    label="Pertanyaan",
-                    placeholder="Misalnya: Berapa jam maksimal lembur dalam sehari?",
-                    lines=3,
-                    scale=4,
-                )
+            question = gr.Textbox(
+                label="Pertanyaan",
+                placeholder="Misalnya: Berapa jam maksimal lembur dalam sehari?",
+                lines=3,
+            )
+            # The date is what the answer depends on, so it reads as the rest of the question.
+            with gr.Row(elem_classes="pk-when"):
                 asked_day = gr.DateTime(
-                    label="Tanggal (opsional)",
-                    info="Kosong: hari ini. Tanggal di dalam pertanyaan didahulukan.",
+                    label="Menurut hukum yang berlaku pada",
                     include_time=False,
                     type="string",
-                    scale=1,
+                    scale=3,
                 )
-            ask_button = gr.Button("Tanya", variant="primary")
-            status = gr.Markdown()
+                ask_button = gr.Button(
+                    "Tanya", variant="primary", scale=1, min_width=120, elem_classes="pk-ask"
+                )
+            gr.HTML(
+                '<p class="pk-hint">Kosongkan tanggal untuk hari ini. Tanggal yang ditulis di '
+                "dalam pertanyaan (misalnya “Maret 2019”) didahulukan.</p>"
+            )
+            with gr.Column(elem_classes="pk-examples"):
+                gr.HTML('<p class="pk-examples-title">Coba salah satu pertanyaan ini:</p>')
+                for text, day in EXAMPLES:
+                    shown = f"{text} ({format_date(date.fromisoformat(day))})" if day else text
+                    example = gr.Button(shown, size="sm", elem_classes="pk-example")
+                    example.click(lambda t=text, d=day: (t, d), None, [question, asked_day])
+            status = gr.Markdown(elem_classes="pk-status")
             answer = gr.HTML()
             cited = gr.Radio(
                 label="Buka pasal yang dikutip, menurut bunyinya pada tanggal itu",
@@ -255,7 +377,6 @@ def build(service: Service) -> gr.Blocks:
                 visible=False,
             )
             article = gr.HTML()
-            gr.Examples(EXAMPLES, [question, asked_day], label="Contoh pertanyaan")
             outputs = [status, answer, cited, article]
             ask_button.click(ask, [question, asked_day], outputs)
             question.submit(ask, [question, asked_day], outputs)
@@ -360,11 +481,12 @@ def build(service: Service) -> gr.Blocks:
 
         documents = sum(i.status == "active" for i in service.manifest.instruments)
         gr.Markdown(
-            f"Sumber: {documents} peraturan dan putusan Mahkamah Konstitusi dari situs resmi "
+            elem_classes="pk-foot",
+            value=f"Sumber: {documents} peraturan dan putusan Mahkamah Konstitusi dari situs resmi "
             f"pemerintah; perubahan terakhir yang tercatat berlaku sejak "
             f"{format_date(service.law_as_of(service.today()) or service.today())}. "
             "Teks berasal dari PDF resmi dan dapat memuat salah baca (OCR): untuk keperluan "
-            "resmi, pakai naskah resminya. API: [/docs](/docs)."
+            "resmi, pakai naskah resminya. API: [/docs](/docs).",
         )
     return blocks
 

@@ -34,6 +34,12 @@ def legal(text: str) -> str:
     return f'<div class="pk-legal">{esc(text)}</div>'
 
 
+def record(text: str) -> str:
+    """Text written by code (a timeline, a calculation): kept apart from the law's own words,
+    which are set in a serif."""
+    return f'<div class="pk-record">{esc(text)}</div>'
+
+
 def notice(text: str) -> str:
     return f'<div class="pk-notice">{esc(text)}</div>'
 
@@ -54,7 +60,10 @@ def items(lines: list[str]) -> str:
     return "<ul>" + "".join(f"<li>{esc(line.removeprefix('- '))}</li>" for line in lines) + "</ul>"
 
 
-def passages(title: str, found: list[dict]) -> str:
+def passages(title: str, found: list[dict], role: str = "source") -> str:
+    """Quoted legal text under a heading. `role` marks how it relates to the date asked about:
+    source (applied on it), nearest (found, not answering), earlier (had ended), later (began
+    after it)."""
     if not found:
         return ""
     rows = "".join(
@@ -63,26 +72,31 @@ def passages(title: str, found: list[dict]) -> str:
         f"<blockquote>{esc(p['quote'])}</blockquote></li>"
         for p in found
     )
-    return f'<h4>{esc(title)}</h4><ul class="pk-passages">{rows}</ul>'
+    return (
+        f'<section class="pk-group pk-{role}"><h4>{esc(title)}</h4>'
+        f'<ul class="pk-passages">{rows}</ul></section>'
+    )
 
 
 def answer_html(payload: dict) -> str:
     """One answer: what was asked about which date, the answer, and everything it rests on."""
     parts = []
     if payload["looked_up"]:  # a refusal looks nothing up, so it has no date to state
+        day, _, source = payload["as_of_text"].partition(" (")
         parts.append(
-            f'<div class="pk-asof">Menurut hukum yang berlaku pada {esc(payload["as_of_text"])}'
-            ":</div>"
+            '<div class="pk-asof"><span class="pk-asof-lead">Menurut hukum yang berlaku pada'
+            f'</span> <span class="pk-date">{esc(day)}</span>'
+            f' <span class="pk-asof-source">({esc(source)}</span></div>'
         )
     parts.append(f'<div class="pk-said">{esc(payload["answer"])}</div>')
     if payload["calculation"]:
-        parts.append("<h4>Hitungan (oleh program)</h4>" + legal(payload["calculation"]["text"]))
+        parts.append("<h4>Hitungan (oleh program)</h4>" + record(payload["calculation"]["text"]))
     if payload["timeline"]:
-        parts.append("<h4>Riwayat (oleh program)</h4>" + legal(payload["timeline"]))
+        parts.append("<h4>Riwayat (oleh program)</h4>" + record(payload["timeline"]))
     parts.append(passages("Sumber", payload["citations"]))
-    parts.append(passages("Kutipan terdekat yang ditemukan", payload["nearest"]))
-    parts.append(passages(EARLIER_HEADING, payload["earlier"]))
-    parts.append(passages("Aturan yang berlaku kemudian", payload["later"]))
+    parts.append(passages("Kutipan terdekat yang ditemukan", payload["nearest"], "nearest"))
+    parts.append(passages(EARLIER_HEADING, payload["earlier"], "earlier"))
+    parts.append(passages("Aturan yang berlaku kemudian", payload["later"], "later"))
     if payload["changed_since"]:
         parts.append("<h4>Perubahan sesudah tanggal itu</h4>" + items(payload["changed_since"]))
     if payload["caveats"]:
@@ -92,16 +106,16 @@ def answer_html(payload: dict) -> str:
         parts.append(
             f'<p class="pk-referral">Sebaiknya tanyakan {also}ke: {esc(payload["referral"])}</p>'
         )
-    facts = [f"jenis pertanyaan: {INTENT_WORDS.get(payload['intent'], payload['intent'])}"]
+    facts = [f"Jenis pertanyaan: {INTENT_WORDS.get(payload['intent'], payload['intent'])}."]
     if not payload["abstained"]:
         confidence = CONFIDENCE_WORDS.get(payload["confidence"], payload["confidence"])
-        facts.insert(0, f"keyakinan: {confidence}")
+        facts.insert(0, f"Keyakinan: {confidence}.")
     if payload["cached"]:
-        facts.append("jawaban yang sama sudah pernah diberikan (dari simpanan)")
+        facts.append("Jawaban yang sama sudah pernah diberikan (dari simpanan).")
     else:
         seconds = f"{payload['seconds'].get('total', 0):.1f}".replace(".", ",")
-        facts.append(f"{seconds} detik")
-    parts.append(f'<div class="pk-meta">{esc(" · ".join(facts))}</div>')
+        facts.append(f"Dijawab dalam {seconds} detik.")
+    parts.append(f'<div class="pk-meta">{esc(" ".join(facts))}</div>')
     parts.append(f'<div class="pk-meta">{esc(DISCLAIMER)}</div>')
     return '<div class="pk-answer">' + "".join(parts) + "</div>"
 
@@ -152,7 +166,7 @@ def history_html(found: dict | None) -> str:
         return notice("Pasal ini tidak ada dalam sumber PasalKini.")
     parts = [f"<h3>{esc(found['label'])}</h3>"]
     if found["timeline"]:
-        parts.append(legal(found["timeline"]))
+        parts.append(record(found["timeline"]))
     for number, version in enumerate(found["versions"], start=1):
         parts.append(f"<h4>{esc(version_label(number, version))}</h4>")
         parts.append(f'<div class="pk-meta">{source_code(version["source_id"])}</div>')
