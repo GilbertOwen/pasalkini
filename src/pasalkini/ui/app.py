@@ -239,6 +239,16 @@ CSS = """
 .pk-badge.pk-repealed { background: none; border-color: var(--pk-brick); color: var(--pk-brick); }
 @media (max-width: 640px) { .pk-periods li { grid-template-columns: 1fr; }
   .pk-answer { padding: 14px 14px 10px; } }
+.pk-actions { justify-content: flex-end; }
+.pk-actions > button { flex-grow: 0 !important; }
+.pk-intro { color: var(--body-text-color-subdued); margin: 2px 0 4px; max-width: 68ch; }
+.pk-calc-basis { margin: 2px 0 6px; }
+.pk-table { font-variant-numeric: tabular-nums; }
+.pk-table th { font-weight: 600; border-bottom: 2px solid var(--border-color-primary) !important; }
+.pk-table th, .pk-table td { border-left: none !important; border-right: none !important;
+  border-top: none !important; background: none !important; }
+.pk-table, .pk-table tr { border: none !important; }
+.pk-answer .pk-table { display: block; overflow-x: auto; }
 .pk-foot, .pk-foot p { font-size: 0.85em !important; color: var(--body-text-color-subdued);
   margin: 24px 0 8px; }
 @media (max-width: 640px) { .pk-date { font-size: 1.25em; } .pk-head h1 { font-size: 1.6em; } }
@@ -471,15 +481,16 @@ def build(service: Service) -> gr.Blocks:
                 only = gr.Textbox(
                     label="Hanya pasal (opsional)", placeholder="Misalnya: 59, 61A", scale=1
                 )
-            law_button = gr.Button("Tampilkan", variant="primary")
+            with gr.Row(elem_classes="pk-actions"):
+                law_button = gr.Button("Tampilkan", variant="primary", min_width=140)
             law_text = gr.HTML()
             law_button.click(show_law, [law, law_day, only], law_text)
 
         with gr.Tab("Kalkulator Pesangon"):
-            gr.Markdown(
-                "Dihitung oleh program dari aturan yang berlaku pada tanggal PHK, bukan oleh AI. "
-                "Kosongkan upah atau tanggal mulai bekerja jika tidak diketahui: hasilnya lalu "
-                "berupa pengali atau bulan upah."
+            gr.HTML(
+                '<p class="pk-intro">Dihitung oleh program dari aturan yang berlaku pada tanggal '
+                "PHK, bukan oleh AI. Kosongkan upah atau tanggal mulai bekerja jika tidak "
+                "diketahui: hasilnya lalu berupa pengali atau bulan upah.</p>"
             )
             with gr.Tab("Pesangon saat PHK"):
                 with gr.Row():
@@ -508,7 +519,8 @@ def build(service: Service) -> gr.Blocks:
                     )
                     days = gr.Radio([5, 6], value=5, label="Hari kerja per minggu")
                     micro = gr.Checkbox(label="Usaha mikro atau usaha kecil")
-                severance_button = gr.Button("Hitung", variant="primary")
+                with gr.Row(elem_classes="pk-actions"):
+                    severance_button = gr.Button("Hitung", variant="primary", min_width=140)
                 severance_result = gr.HTML()
                 end.change(reason_choices, end, reason)
                 severance_button.click(
@@ -527,7 +539,8 @@ def build(service: Service) -> gr.Blocks:
                     )
                     contract_wage = gr.Number(label="Upah sebulan (Rp)", precision=0, minimum=0)
                     contract_micro = gr.Checkbox(label="Usaha mikro atau usaha kecil")
-                compensation_button = gr.Button("Hitung", variant="primary")
+                with gr.Row(elem_classes="pk-actions"):
+                    compensation_button = gr.Button("Hitung", variant="primary", min_width=140)
                 compensation_result = gr.HTML()
                 compensation_button.click(
                     compensation,

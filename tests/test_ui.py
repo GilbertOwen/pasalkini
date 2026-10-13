@@ -153,10 +153,12 @@ def test_a_calculation_is_a_table_with_the_basis_of_each_line(tmp_path):
     assert "<td>Uang kompensasi PKWT</td><td>18/12 x 1 bulan upah</td>" in shown
     assert '<td class="pk-amount">Rp9.000.000</td>' in shown
     assert "PP 35/2021 Pasal 16; pp-35-2021/pasal-15" in shown
-    assert "Jumlah yang dapat dihitung: Rp9.000.000" in shown
+    # The total comes first, as the date does in an answer.
+    assert shown.index('<span class="pk-date">Rp9.000.000</span>') < shown.index("<table")
+    assert "Menurut PP 35/2021, dengan masa kerja" in shown
     assert "bukan oleh AI" in shown and "pada 1 Juli 2023" in shown
     without_wage = service.pkwt_compensation(date(2022, 1, 1), date(2023, 7, 1), None)
-    assert "Jumlah: 1,5 bulan upah" in calculation_html(without_wage, None)
+    assert '<span class="pk-date">1,5 bulan upah</span>' in calculation_html(without_wage, None)
     too_early = service.pkwt_compensation(date(2020, 11, 5), date(2021, 1, 5), 6_000_000)
     assert "Perlu dicek manual" in calculation_html(too_early, 6_000_000)
 

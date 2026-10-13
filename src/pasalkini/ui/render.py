@@ -9,6 +9,7 @@ import html
 import re
 from datetime import date
 
+from pasalkini.answer.context import instrument_label
 from pasalkini.answer.pipeline import EARLIER_HEADING
 from pasalkini.temporal.query import diff_segments, format_date
 
@@ -300,7 +301,8 @@ def law_html(found: dict | None) -> str:
 
 
 def calculation_html(result: dict, wage: int | None) -> str:
-    """A calculator result: one row per component with its formula and legal basis."""
+    """A calculator result: the total first, then one row per component with its formula and
+    legal basis, then what else the reader should know."""
     if result["unsupported"]:
         return notice(result["unsupported"])
     titles = {source["source_id"]: source["title"] for source in result["sources"]}
@@ -310,32 +312,41 @@ def calculation_html(result: dict, wage: int | None) -> str:
         f"<td>{esc('; '.join(titles.get(b, b).split(' (')[0] for b in line['basis']))}</td></tr>"
         for line in result["lines"]
     )
-    parts = [
-        f'<div class="pk-asof">Aturan yang dipakai: {esc(result["regime"])}; masa kerja: '
-        f"{esc(result['service'])}; upah sebulan: {esc(rupiah(wage))}.</div>"
-    ]
+    least = "paling sedikit " if result["minimum"] else ""
+    parts = []
+    if result["total"] is not None:
+        total = f"{least}{rupiah(result['total'])}"
+        parts.append(
+            '<div class="pk-asof"><span class="pk-asof-lead">Jumlah yang dapat dihitung</span>'
+            f'<span class="pk-date">{esc(total)}</span></div>'
+        )
+    elif result["total_months_of_wage"]:
+        months = f"{result['total_months_of_wage']:g}".replace(".", ",")
+        parts.append(
+            '<div class="pk-asof"><span class="pk-asof-lead">Jumlah, dalam bulan upah</span>'
+            f'<span class="pk-date">{esc(least + months)} bulan upah</span></div>'
+        )
+    regime = instrument_label(result["regime"])
+    parts.append(
+        f'<p class="pk-calc-basis">Menurut {esc(regime)}, dengan masa kerja '
+        f"{esc(result['service'])} dan upah sebulan {esc(rupiah(wage))}.</p>"
+    )
     if result["reason"]:
         parts.append(f'<div class="pk-meta">Alasan PHK: {esc(result["reason"])}</div>')
     if rows:
         parts.append(
-            '<table class="pk-table"><thead><tr><th>Komponen</th><th>Rumus</th><th>Jumlah</th>'
+            '<table class="pk-table"><thead><tr><th>Komponen</th><th>Rumus</th>'
+            '<th class="pk-amount">Jumlah</th>'
             f"<th>Dasar hukum</th></tr></thead><tbody>{rows}</tbody></table>"
         )
-    least = "paling sedikit " if result["minimum"] else ""
-    if result["total"] is not None:
-        total = esc(rupiah(result["total"]))
-        parts.append(f'<div class="pk-said">Jumlah yang dapat dihitung: {least}{total}</div>')
-    elif result["total_months_of_wage"]:
-        months = f"{result['total_months_of_wage']:g}".replace(".", ",")
-        parts.append(f'<div class="pk-said">Jumlah: {least}{esc(months)} bulan upah</div>')
     if result["other_reasons_same_article"]:
         parts.append("<h4>Alasan lain dalam pasal yang sama</h4>")
         parts.append(items(result["other_reasons_same_article"]))
     if result["notes"]:
         parts.append("<h4>Catatan</h4>" + items(result["notes"]))
     parts.append(
-        '<div class="pk-meta">Dihitung oleh program dari aturan yang berlaku pada '
+        '<footer class="pk-small"><p>Dihitung oleh program dari aturan yang berlaku pada '
         f"{esc(day_text(result['as_of']))}, bukan oleh AI. Periksa juga perjanjian kerja, "
-        "peraturan perusahaan dan perjanjian kerja bersama Anda.</div>"
+        "peraturan perusahaan dan perjanjian kerja bersama Anda.</p></footer>"
     )
     return '<div class="pk-answer">' + "".join(parts) + "</div>"
