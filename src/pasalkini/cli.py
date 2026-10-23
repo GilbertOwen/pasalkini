@@ -351,9 +351,13 @@ def cmd_serve(args: argparse.Namespace) -> None:
     import uvicorn
 
     from pasalkini.api.main import create_app
+    from pasalkini.service import Service
 
-    app = create_app()
+    config = {"qwen": "pasalkini", "gemini": "pasalkini-gemini"}[args.model]
+    app = create_app(Service.load(config))
     print(f"PasalKini: http://{args.host}:{args.port}  (API: /docs, UI: /ui)")
+    if args.model == "gemini":
+        print("Answers are written by Gemini over the internet; embeddings stay on this machine.")
     uvicorn.run(app, host=args.host, port=args.port)
 
 
@@ -439,6 +443,13 @@ def main() -> None:
     # 127.0.0.1: reachable from this machine only. The app has no login and no rate limit.
     serve.add_argument("--host", default="127.0.0.1")
     serve.add_argument("--port", type=int, default=8000)
+    serve.add_argument(
+        "--model",
+        choices=["qwen", "gemini"],
+        default="qwen",
+        help="who writes the answers: qwen3.5:4b on this machine (default) or Gemini "
+        "(needs GEMINI_API_KEY; the redacted question and the quoted law are sent to Google)",
+    )
 
     args = parser.parse_args()
     handlers = {

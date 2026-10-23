@@ -38,7 +38,7 @@ from pasalkini.answer.context import (
     notes_of,
     rulings_read,
 )
-from pasalkini.answer.llm import chat_json
+from pasalkini.answer.llm import GeminiUnavailable, chat_json, is_gemini
 from pasalkini.answer.pipeline import DATE_SOURCES, Outcome, Pipeline
 from pasalkini.answer.understand import Chat, decide_date
 from pasalkini.answer.verify import Passage, body_of
@@ -329,6 +329,7 @@ class Service:
                 self.pipeline.today = today
                 outcome = self.pipeline.run(question, date_hint, self.embed(question))
                 payload = answer_payload(outcome)
+                payload["answered_by"] = self.answered_by
                 trace.root.attributes.update(
                     output=payload["answer"],
                     intent=payload["intent"],
@@ -340,10 +341,7 @@ class Service:
             logger.warning("model call failed: %r", error)
             self.record(entry, None, error=type(error).__name__)
             self.export(trace)
-            raise ModelUnavailable(
-                "Model bahasa tidak dapat dihubungi. Pastikan Ollama berjalan dan model "
-                f"{self.config.chat_model} serta {self.config.embed_model} sudah terpasang."
-            ) from error
+            raise ModelUnavailable(self.unavailable(error)) from error
         self.export(trace)
         if key is not None and outcome.json_ok:
             self.cache.put(key, payload)
@@ -578,11 +576,31 @@ class Service:
 
     # --- Health ---
 
+    def unavailable(self, error: Exception) -> str:
+        if is_gemini(self.config.chat_model) and isinstance(error, GeminiUnavailable):
+            return (
+                f"Gemini ({self.config.chat_model}) tidak dapat dipakai: {error}. Periksa "
+                "GEMINI_API_KEY dan koneksi internet."
+            )
+        return (
+            "Model bahasa tidak dapat dihubungi. Pastikan Ollama berjalan dan model "
+            f"{self.config.chat_model} serta {self.config.embed_model} sudah terpasang."
+        )
+
+    @property
+    def answered_by(self) -> str:
+        """The chat model, as the screens name it."""
+        model = self.config.chat_model
+        return f"Gemini ({model}, lewat internet)" if is_gemini(model) else f"{model} (lokal)"
+
     def health(self) -> dict:
         wanted = {"chat": self.config.chat_model, "embedding": self.config.embed_model}
         started = time.perf_counter()
         try:
             installed = {m.model for m in ollama.Client(timeout=3).list().models}
+            # Gemini is not an Ollama model: what it needs is its key.
+            if is_gemini(self.config.chat_model) and os.environ.get("GEMINI_API_KEY"):
+                installed.add(self.config.chat_model)
             model = {
                 "reachable": True,
                 **{role: {"name": n, "installed": n in installed} for role, n in wanted.items()},

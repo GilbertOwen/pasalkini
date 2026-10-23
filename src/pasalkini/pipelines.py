@@ -122,6 +122,18 @@ CONFIGS: dict[str, PipelineConfig] = {
             answer_mode="verified",
         ),
         PipelineConfig(
+            name="pasalkini-gemini",
+            description=(
+                "The pasalkini pipeline with Google's Gemini as the chat model, through the "
+                "Gemini API (GEMINI_API_KEY). Embeddings stay local. Every check is the same."
+            ),
+            corpus="versions",
+            date_filter=True,
+            retriever="hybrid",
+            answer_mode="verified",
+            chat_model="gemini-3.5-flash-lite",
+        ),
+        PipelineConfig(
             name="pasalkini-agent",
             description=(
                 "Agent: rules read the date; the model picks one tool per step (search with "

@@ -157,6 +157,8 @@ def answer_html(payload: dict) -> str:
     else:
         seconds = f"{payload['seconds'].get('total', 0):.1f}".replace(".", ",")
         facts.append(f"Dijawab dalam {seconds} detik.")
+    if payload.get("answered_by"):
+        facts.append(f"Ditulis oleh model {payload['answered_by']}.")
     parts.append(
         f'<footer class="pk-small"><p>{esc(" ".join(facts))}</p><p>{esc(DISCLAIMER)}</p></footer>'
     )
