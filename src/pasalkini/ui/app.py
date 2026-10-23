@@ -18,17 +18,19 @@ from datetime import date
 import gradio as gr
 from fastapi import FastAPI
 
-from pasalkini.service import Service
+from pasalkini.service import MAX_TURNS, Service, turn_of
 from pasalkini.temporal.query import format_date
 from pasalkini.tools.pesangon import CalculatorError
 from pasalkini.ui.render import (
     answer_html,
     calculation_html,
+    conversation_html,
     diff_html,
     history_html,
     law_html,
     notice,
     provision_html,
+    question_html,
     version_label,
     versions_html,
 )
@@ -146,6 +148,14 @@ CSS = """
 
 .pk-when { align-items: flex-end !important; }
 .pk-ask { flex-grow: 0 !important; min-height: 44px; margin-bottom: 1px; }
+.pk-you { margin: 0 0 10px auto; width: fit-content; max-width: 80%; padding: 8px 14px;
+  border-radius: 12px 12px 3px 12px; background: var(--color-accent-soft);
+  white-space: pre-wrap; }
+.pk-asked { font-size: 0.88em; color: var(--body-text-color-subdued); margin: -2px 0 8px; }
+.pk-conversation { display: flex; flex-direction: column; gap: 14px; }
+.pk-turn { border-bottom: 1px solid var(--border-color-primary); padding-bottom: 12px; }
+.pk-turn-date { font-size: 0.85em; color: var(--body-text-color-subdued); margin: 0 0 2px; }
+.pk-turn-said { white-space: pre-wrap; max-width: 68ch; }
 .pk-hint { font-size: 0.86em; color: var(--body-text-color-subdued); margin: -4px 0 0; }
 .pk-status { color: var(--body-text-color-subdued); min-height: 1.4em; }
 .pk-examples { gap: 0 !important; }
@@ -298,18 +308,29 @@ def build(service: Service) -> gr.Blocks:
 
     # --- Tanya ---
 
-    def ask(question: str, day: object):
+    def ask(question: str, day: object, history: list[dict]):
+        """One turn of the conversation. `history`: the earlier turns of this browser tab, each
+        {'typed': …, 'payload': …}; nothing of it is kept anywhere else."""
+        typed = (question or "").strip()
         closed = gr.update(choices=[], value=None, visible=False)
-        yield "Memulai…", "", closed, ""
-        for kind, data in service.ask_events(question or "", day_of(day)):
+        earlier = conversation_html(history)
+        asked = question_html(typed)
+        turns = [turn_of(entry["typed"], entry["payload"]) for entry in history]
+        yield "Memulai…", earlier, asked, closed, "", gr.skip(), gr.skip()
+        for kind, data in service.ask_events(typed, day_of(day), turns):
             if kind == "stage":
-                yield f"{data['label']}…", gr.skip(), gr.skip(), gr.skip()
+                yield f"{data['label']}…", *[gr.skip()] * 6
             elif kind == "answer":
                 found = chips(data)
                 opened = gr.update(choices=found, value=None, visible=bool(found))
-                yield "", answer_html(data), opened, ""
+                kept = [*history, {"typed": typed, "payload": data}][-MAX_TURNS:]
+                yield "", earlier, asked + answer_html(data), opened, "", "", kept
             else:
-                yield "", notice(data["detail"]), closed, ""
+                yield "", earlier, asked + notice(data["detail"]), closed, "", gr.skip(), gr.skip()
+
+    def new_conversation():
+        closed = gr.update(choices=[], value=None, visible=False)
+        return [], "", "", "", closed, "", ""
 
     def open_article(choice: str | None) -> str:
         if not choice:
@@ -406,9 +427,22 @@ def build(service: Service) -> gr.Blocks:
         gr.HTML(BANNER)
 
         with gr.Tab("Tanya"):
+            history = gr.State([])
+            # The conversation reads top to bottom: earlier turns, then the newest answer in
+            # full, then the box for the next question.
+            earlier = gr.HTML()
+            status = gr.Markdown(elem_classes="pk-status")
+            answer = gr.HTML()
+            cited = gr.Radio(
+                label="Buka pasal yang dikutip, menurut bunyinya pada tanggal itu",
+                choices=[],
+                visible=False,
+            )
+            article = gr.HTML()
             question = gr.Textbox(
                 label="Pertanyaan",
-                placeholder="Misalnya: Berapa jam maksimal lembur dalam sehari?",
+                placeholder="Misalnya: Berapa jam maksimal lembur dalam sehari? Lalu lanjutkan: "
+                "“kalau tahun 2022?”",
                 lines=3,
             )
             # The date is what the answer depends on, so it reads as the rest of the question.
@@ -424,26 +458,24 @@ def build(service: Service) -> gr.Blocks:
                 )
             gr.HTML(
                 '<p class="pk-hint">Kosongkan tanggal untuk hari ini. Tanggal yang ditulis di '
-                "dalam pertanyaan (misalnya “Maret 2019”) didahulukan.</p>"
+                "dalam pertanyaan (misalnya “Maret 2019”) didahulukan. Pertanyaan lanjutan "
+                "dibaca bersama percakapan di atas; percakapan hanya disimpan di tab ini.</p>"
             )
-            status = gr.Markdown(elem_classes="pk-status")
-            answer = gr.HTML()
-            cited = gr.Radio(
-                label="Buka pasal yang dikutip, menurut bunyinya pada tanggal itu",
-                choices=[],
-                visible=False,
-            )
-            article = gr.HTML()
+            with gr.Row(elem_classes="pk-actions"):
+                restart = gr.Button("Percakapan baru", size="sm", min_width=140)
             with gr.Column(elem_classes="pk-examples"):
                 gr.HTML('<p class="pk-examples-title">Coba salah satu pertanyaan ini:</p>')
                 for text, day in EXAMPLES:
                     shown = f"{text} ({format_date(date.fromisoformat(day))})" if day else text
                     example = gr.Button(shown, size="sm", elem_classes="pk-example")
                     example.click(lambda t=text, d=day: (t, d), None, [question, asked_day])
-            outputs = [status, answer, cited, article]
-            ask_button.click(ask, [question, asked_day], outputs)
-            question.submit(ask, [question, asked_day], outputs)
+            outputs = [status, earlier, answer, cited, article, question, history]
+            ask_button.click(ask, [question, asked_day, history], outputs)
+            question.submit(ask, [question, asked_day, history], outputs)
             cited.change(open_article, cited, article)
+            restart.click(
+                new_conversation, None, [history, earlier, status, answer, cited, article, question]
+            )
 
         with gr.Tab("Riwayat Pasal"):
             with gr.Row():

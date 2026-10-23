@@ -87,7 +87,7 @@ uv run pytest
 
 | Screen | What it does |
 |---|---|
-| **Tanya** | A question and an optional date. Shows which stage is running, then the answer with the date it used, its sources in their own words, earlier wordings and later law under their own headings, what changed after that date, and notes. Each cited article opens in full, as it stood on that date |
+| **Tanya** | A conversation: a question and an optional date, then follow-ups ("kalau tahun 2022?") that are rewritten into full questions, with the rewrite shown. The conversation lives in the browser tab only. For each question: Shows which stage is running, then the answer with the date it used, its sources in their own words, earlier wordings and later law under their own headings, what changed after that date, and notes. Each cited article opens in full, as it stood on that date |
 | **Riwayat Pasal** | One article's timeline, every version in full, and the word-level changes between any two |
 | **Konsolidasi** | A law or regulation as it stood on a date: each article in the wording that applied |
 | **Kalkulator Pesangon** | Severance and PKWT compensation under the rules of the dismissal date, each line with its legal basis. Computed by rule; no model |

@@ -38,6 +38,7 @@ from pasalkini.answer.context import (
     notes_of,
     rulings_read,
 )
+from pasalkini.answer.followup import Turn, read_follow_up
 from pasalkini.answer.llm import GeminiUnavailable, chat_json, is_gemini
 from pasalkini.answer.pipeline import DATE_SOURCES, Outcome, Pipeline
 from pasalkini.answer.understand import Chat, decide_date
@@ -72,12 +73,14 @@ from pasalkini.trace import Exporter, Span, Trace, tracing
 
 logger = logging.getLogger("pasalkini")
 
+MAX_TURNS = 5  # earlier turns a follow-up is read against
 MAX_QUESTION_CHARS = 2000
 TRACE_ENDPOINT = "PASALKINI_TRACE_ENDPOINT"  # e.g. http://localhost:6006/v1/traces (Phoenix)
 MODEL_ERRORS = (httpx.HTTPError, ollama.ResponseError, ConnectionError)
 
 # The pipeline's stages, as told to a waiting user.
 STAGES = {
+    "follow-up": "Membaca pertanyaan lanjutan",
     "embed": "Menyiapkan pencarian",
     "understand": "Memahami pertanyaan",
     "calculate": "Menghitung",
@@ -98,6 +101,19 @@ INTENTS = {
 AS_OF_SOURCES = {"pertanyaan": "question", "pemilih_tanggal": "date_picker", "hari_ini": "today"}
 CONFIDENCE = {"tinggi": "high", "sedang": "medium", "rendah": "low"}
 STATUS_WORDS = {"in_force": "berlaku", "conditional": "berlaku bersyarat", "repealed": "dihapus"}
+
+
+def turn_of(question: str, payload: dict) -> Turn:
+    """An answered question as a turn of the conversation: the question the pipeline was
+    asked (redacted again, since a screen keeps what was typed), its answer and its date."""
+    asked = payload.get("asked_as") or redact(question).text
+    sources = {code: name for name, code in AS_OF_SOURCES.items()}
+    return Turn(
+        question=asked,
+        answer=payload["answer"],
+        as_of=date.fromisoformat(payload["as_of"]),
+        as_of_source=sources.get(payload["as_of_source"], "hari_ini"),
+    )
 
 
 class ModelUnavailable(RuntimeError):
@@ -279,7 +295,10 @@ class Service:
         question: str,
         date_hint: date | None = None,
         on_stage: Callable[[str], None] | None = None,
+        history: list[Turn] | None = None,
     ) -> dict:
+        """`history`: the conversation so far, oldest first. A follow-up is rewritten into a
+        question of its own before anything else happens (answer/followup.py)."""
         question = question.strip()
         if not question:
             raise ValueError("Pertanyaan kosong.")
@@ -292,6 +311,25 @@ class Service:
         redacted = redact(question)
         question = redacted.text
         today = self.today()
+        rewritten = False
+        if history:
+            if on_stage is not None:
+                on_stage("follow-up")
+            try:
+                with self.lock:
+                    read = read_follow_up(
+                        question,
+                        history[-MAX_TURNS:],
+                        date_hint,
+                        today,
+                        self.pipeline.chat,
+                        self.pipeline.short_options,
+                    )
+            except MODEL_ERRORS as error:
+                logger.warning("model call failed: %r", error)
+                raise ModelUnavailable(self.unavailable(error)) from error
+            question, rewritten = read.question, read.rewritten
+        asked_as = question if rewritten else None
         as_of, source = decide_date(question, date_hint, today)
         entry = {
             "question": question,
@@ -316,6 +354,7 @@ class Service:
             cached = self.cache.get(key)
             if cached is not None:
                 payload = {**cached, "cached": True, "seconds": {"total": 0.0}}
+                payload["asked_as"] = asked_as
                 self.record(entry, payload)
                 return payload
 
@@ -330,6 +369,7 @@ class Service:
                 outcome = self.pipeline.run(question, date_hint, self.embed(question))
                 payload = answer_payload(outcome)
                 payload["answered_by"] = self.answered_by
+                payload["asked_as"] = asked_as
                 trace.root.attributes.update(
                     output=payload["answer"],
                     intent=payload["intent"],
@@ -349,7 +389,7 @@ class Service:
         return payload
 
     def ask_events(
-        self, question: str, date_hint: date | None = None
+        self, question: str, date_hint: date | None = None, history: list[Turn] | None = None
     ) -> Iterator[tuple[str, dict]]:
         """The same as `ask`, as a stream: ('stage', …) as each stage starts, then ('answer', …)
         or ('error', …). The pipeline runs in a thread of its own so that the stages can be
@@ -361,7 +401,7 @@ class Service:
 
         def work() -> None:
             try:
-                events.put(("answer", self.ask(question, date_hint, stage)))
+                events.put(("answer", self.ask(question, date_hint, stage, history)))
             except ValueError as error:
                 events.put(("error", {"status": 422, "detail": str(error)}))
             except ModelUnavailable as error:

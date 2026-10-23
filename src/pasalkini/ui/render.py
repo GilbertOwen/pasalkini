@@ -125,6 +125,8 @@ def answer_html(payload: dict) -> str:
             f'</span> <span class="pk-date">{esc(day)}</span>'
             f' <span class="pk-asof-source">({esc(source)}</span></div>'
         )
+    if payload.get("asked_as"):
+        parts.append(f'<p class="pk-asked">Dibaca sebagai: “{esc(payload["asked_as"])}”</p>')
     parts.append(f'<div class="pk-said">{esc(payload["answer"])}</div>')
     if payload["calculation"]:
         parts.append("<h4>Hitungan (oleh program)</h4>" + record(payload["calculation"]["text"]))
@@ -163,6 +165,31 @@ def answer_html(payload: dict) -> str:
         f'<footer class="pk-small"><p>{esc(" ".join(facts))}</p><p>{esc(DISCLAIMER)}</p></footer>'
     )
     return '<div class="pk-answer">' + "".join(parts) + "</div>"
+
+
+def question_html(typed: str) -> str:
+    """What the asker typed, as their side of the conversation."""
+    return f'<div class="pk-you">{esc(typed)}</div>' if typed else ""
+
+
+def conversation_html(entries: list[dict]) -> str:
+    """Earlier turns, oldest first: each question with its answer in short (the date it was
+    for and the answer's sentences). The sources stay with the newest answer."""
+    if not entries:
+        return ""
+    turns = []
+    for entry in entries:
+        payload = entry["payload"]
+        day = payload["as_of_text"].partition(" (")[0] if payload["looked_up"] else ""
+        asked = payload.get("asked_as")
+        turns.append(
+            '<div class="pk-turn">'
+            + question_html(entry["typed"])
+            + (f'<p class="pk-asked">Dibaca sebagai: “{esc(asked)}”</p>' if asked else "")
+            + (f'<p class="pk-turn-date">Menurut hukum pada {esc(day)}</p>' if day else "")
+            + f'<div class="pk-turn-said">{esc(payload["answer"])}</div></div>'
+        )
+    return '<div class="pk-conversation">' + "".join(turns) + "</div>"
 
 
 def folded(title: str, body: str) -> str:

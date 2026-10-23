@@ -28,7 +28,9 @@ from fastapi.sse import EventSourceResponse, ServerSentEvent
 from pydantic import BaseModel, Field
 
 from pasalkini import __version__
-from pasalkini.service import MAX_QUESTION_CHARS, ModelUnavailable, Service
+from pasalkini.answer.followup import Turn
+from pasalkini.privacy.redact import redact
+from pasalkini.service import AS_OF_SOURCES, MAX_QUESTION_CHARS, ModelUnavailable, Service
 from pasalkini.tools.pesangon import CalculatorError
 
 DESCRIPTION = (
@@ -40,6 +42,15 @@ AsOf = Annotated[
     Date | None,
     Query(description="Tanggal yang menentukan hukum yang berlaku (YYYY-MM-DD). Kosong: hari ini."),
 ]
+
+
+class TurnIn(BaseModel):
+    """An earlier question of the conversation and its answer, as /ask returned them."""
+
+    question: str = Field(max_length=MAX_QUESTION_CHARS)
+    answer: str = Field(max_length=20_000)
+    as_of: Date
+    as_of_source: Literal["question", "date_picker", "today"] = "question"
 
 
 class AskRequest(BaseModel):
@@ -55,6 +66,12 @@ class AskRequest(BaseModel):
             "tanpa keduanya dipakai hari ini."
         ),
         examples=["2019-06-01"],
+    )
+    history: list[TurnIn] = Field(
+        default=[],
+        max_length=20,
+        description="Pertanyaan dan jawaban sebelumnya, terlama dulu: pertanyaan lanjutan "
+        "('kalau tahun 2022?') ditulis ulang menjadi pertanyaan lengkap.",
     )
 
 
@@ -75,6 +92,14 @@ class CompensationRequest(BaseModel):
     tanggal_berakhir: Date
     upah_bulanan: int | None = Field(default=None, gt=0)
     usaha_mikro_kecil: bool = False
+
+
+def turns(body: AskRequest) -> list[Turn]:
+    sources = {code: name for name, code in AS_OF_SOURCES.items()}
+    return [
+        Turn(redact(t.question).text, t.answer, t.as_of, sources[t.as_of_source])
+        for t in body.history
+    ]
 
 
 def create_app(service: Service | None = None, ui: bool = True) -> FastAPI:
@@ -98,14 +123,14 @@ def create_app(service: Service | None = None, ui: bool = True) -> FastAPI:
     def ask(body: AskRequest) -> Iterable[ServerSentEvent]:
         """A question, answered as a stream: `stage` events while the pipeline works, then one
         `answer` event with the whole checked answer, or one `error` event."""
-        for kind, data in service.ask_events(body.question, body.date):
+        for kind, data in service.ask_events(body.question, body.date, turns(body)):
             yield ServerSentEvent(event=kind, data=data)
 
     @app.post("/ask/json", tags=["tanya"])
     def ask_json(body: AskRequest) -> dict:
         """The same question, answered in one response."""
         try:
-            return service.ask(body.question, body.date)
+            return service.ask(body.question, body.date, history=turns(body))
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
 
