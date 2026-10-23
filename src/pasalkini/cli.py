@@ -365,6 +365,9 @@ def main() -> None:
     # Windows consoles default to a legacy code page when output is piped.
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    from pasalkini.env import load_env
+
+    load_env()  # GEMINI_API_KEY and the like, from .env in the project folder
 
     parser = argparse.ArgumentParser(prog="pasalkini")
     sub = parser.add_subparsers(dest="command")

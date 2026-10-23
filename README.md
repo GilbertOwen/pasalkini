@@ -71,7 +71,7 @@ uv run pasalkini setup     # once: download the official PDFs (about 180 MB, one
 uv run pasalkini serve     # the app: http://127.0.0.1:8000
 ```
 
-**Gemini instead of the local model (optional).** Set your key from [Google AI Studio](https://aistudio.google.com) in the environment variable `GEMINI_API_KEY`, then `uv run pasalkini serve --model gemini`. Answers are then written by `gemini-3.5-flash-lite` over the internet: the question (with personal data already removed) and the quoted law are sent to Google, and on the free tier Google may use them to improve its products. The search, the date rule and every check stay on this machine; Ollama is still needed for the embeddings. Each answer says which model wrote it.
+**Gemini instead of the local model (optional).** Copy `.env.example` to `.env` and put your key from [Google AI Studio](https://aistudio.google.com) after `GEMINI_API_KEY=` (or set that environment variable; it wins over the file), then `uv run pasalkini serve --model gemini`. Answers are then written by `gemini-3.5-flash-lite` over the internet: the question (with personal data already removed) and the quoted law are sent to Google, and on the free tier Google may use them to improve its products. The search, the date rule and every check stay on this machine; Ollama is still needed for the embeddings. Each answer says which model wrote it.
 
 `setup` is four steps that can also be run one by one: `download`, `parse`, `build`, `index`. From a fresh clone on the development laptop, `uv sync` took 47 s and `setup` about a minute once the PDFs were there; the app is up 12 s after `serve`. Without the app:
 

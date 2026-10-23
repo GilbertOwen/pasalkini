@@ -622,6 +622,12 @@ class Service:
                 f"Gemini ({self.config.chat_model}) tidak dapat dipakai: {error}. Periksa "
                 "GEMINI_API_KEY dan koneksi internet."
             )
+        if is_gemini(self.config.chat_model):
+            # The answer is Gemini's, but the search still embeds with the local model.
+            return (
+                "Ollama tidak dapat dihubungi: pencarian tetap memakai model lokal "
+                f"{self.config.embed_model}. Jalankan `ollama serve`. ({type(error).__name__})"
+            )
         return (
             "Model bahasa tidak dapat dihubungi. Pastikan Ollama berjalan dan model "
             f"{self.config.chat_model} serta {self.config.embed_model} sudah terpasang."
